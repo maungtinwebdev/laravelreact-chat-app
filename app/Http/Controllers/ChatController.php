@@ -1,0 +1,19 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+
+class ChatController extends Controller
+{
+    public function index()
+    {
+        return Inertia::render('Chat');
+    }
+
+    public function chatRoom()
+    {
+        return Inertia::render('ChatRoom');
+    }
+}
