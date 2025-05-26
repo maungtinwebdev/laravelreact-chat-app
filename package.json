@@ -22,6 +22,13 @@
         "vite": "^6.2.4"
     },
     "dependencies": {
-        "@supabase/supabase-js": "^2.49.8"
+        "@radix-ui/react-avatar": "^1.1.10",
+        "@radix-ui/react-scroll-area": "^1.2.9",
+        "@radix-ui/react-slot": "^1.2.3",
+        "@supabase/supabase-js": "^2.49.8",
+        "class-variance-authority": "^0.7.1",
+        "clsx": "^2.1.1",
+        "lucide-react": "^0.511.0",
+        "tailwind-merge": "^3.3.0"
     }
 }
