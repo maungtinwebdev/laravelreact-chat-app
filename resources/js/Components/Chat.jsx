@@ -7,7 +7,9 @@ import { ScrollArea } from "@/Components/ui/scroll-area";
 import { Card, CardHeader, CardContent } from "@/Components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 import { Badge } from "@/Components/ui/badge";
+import { MessageStatus } from "@/Components/ui/message-status";
 import { useToast } from "@/Components/ui/use-toast";
+import { Check, CheckCheck } from 'lucide-react';
 import axios from 'axios';
 
 export default function Chat({ auth }) {
@@ -19,6 +21,7 @@ export default function Chat({ auth }) {
     const [loading, setLoading] = useState(true);
     const messagesEndRef = useRef(null);
     const { toast } = useToast();
+    const [userStatuses, setUserStatuses] = useState({});
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -43,6 +46,23 @@ export default function Chat({ auth }) {
         scrollToBottom();
     }, [messages]);
 
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setUserStatuses(prev => {
+                const newStatuses = { ...prev };
+                users.forEach(user => {
+                    newStatuses[user.id] = {
+                        isOnline: isUserOnline(user),
+                        lastSeen: formatLastSeen(user.last_seen_at)
+                    };
+                });
+                return newStatuses;
+            });
+        }, 30000);
+
+        return () => clearInterval(interval);
+    }, [users]);
+
     const loadConversations = async () => {
         try {
             const response = await axios.get('/api/chats');
@@ -62,6 +82,14 @@ export default function Chat({ auth }) {
         try {
             const response = await axios.get('/api/chats/users');
             setUsers(response.data);
+            const statuses = {};
+            response.data.forEach(user => {
+                statuses[user.id] = {
+                    isOnline: isUserOnline(user),
+                    lastSeen: formatLastSeen(user.last_seen_at)
+                };
+            });
+            setUserStatuses(statuses);
         } catch (error) {
             console.error('Error loading users:', error);
         }
@@ -71,6 +99,13 @@ export default function Chat({ auth }) {
         try {
             const response = await axios.get(`/api/chats/${userId}`);
             setMessages(response.data);
+
+            // Mark messages as delivered when they are loaded
+            response.data.forEach(message => {
+                if (message.sender_id !== auth.user.id && message.status === 'sent') {
+                    markMessageAsDelivered(message.id);
+                }
+            });
         } catch (error) {
             console.error('Error loading messages:', error);
             toast({
@@ -80,6 +115,35 @@ export default function Chat({ auth }) {
             });
         }
     };
+
+    const markMessageAsDelivered = async (messageId) => {
+        try {
+            await axios.post(`/api/chats/messages/${messageId}/delivered`);
+        } catch (error) {
+            console.error('Error marking message as delivered:', error);
+        }
+    };
+
+    const markMessageAsSeen = async (messageId) => {
+        try {
+            await axios.post(`/api/chats/messages/${messageId}/seen`);
+        } catch (error) {
+            console.error('Error marking message as seen:', error);
+        }
+    };
+
+    // Update message status when messages are viewed
+    useEffect(() => {
+        if (messages.length > 0 && selectedUser) {
+            const unreadMessages = messages.filter(
+                message => message.sender_id !== auth.user.id && message.status !== 'seen'
+            );
+
+            unreadMessages.forEach(message => {
+                markMessageAsSeen(message.id);
+            });
+        }
+    }, [messages, selectedUser]);
 
     const sendMessage = async (e) => {
         e.preventDefault();
@@ -124,6 +188,71 @@ export default function Chat({ auth }) {
         } else {
             return date.toLocaleDateString();
         }
+    };
+
+    const isUserOnline = (user) => {
+        if (!user.last_seen_at) return false;
+        const lastSeen = new Date(user.last_seen_at);
+        const now = new Date();
+        const diffInMinutes = (now - lastSeen) / (1000 * 60);
+        return diffInMinutes < 5;
+    };
+
+    const formatLastSeen = (lastSeenAt) => {
+        if (!lastSeenAt) return 'Offline';
+        const lastSeen = new Date(lastSeenAt);
+        const now = new Date();
+        const diffInMinutes = (now - lastSeen) / (1000 * 60);
+
+        if (diffInMinutes < 1) return 'Active now';
+        if (diffInMinutes < 2) return 'Active 1 minute ago';
+        if (diffInMinutes < 60) return `Active ${Math.floor(diffInMinutes)} minutes ago`;
+        if (diffInMinutes < 120) return 'Active 1 hour ago';
+        if (diffInMinutes < 1440) return `Active ${Math.floor(diffInMinutes / 60)} hours ago`;
+        if (diffInMinutes < 2880) return 'Active yesterday';
+        return `Active on ${lastSeen.toLocaleDateString()}`;
+    };
+
+    const renderMessageStatus = (message) => {
+        if (message.sender_id !== auth.user.id) return null;
+
+        let statusIcon;
+        switch (message.status) {
+            case 'sent':
+                statusIcon = <Check className="w-3 h-3" />;
+                break;
+            case 'delivered':
+                statusIcon = <CheckCheck className="w-3 h-3" />;
+                break;
+            case 'seen':
+                statusIcon = <CheckCheck className="w-3 h-3 text-blue-500" />;
+                break;
+            default:
+                statusIcon = <Check className="w-3 h-3" />;
+        }
+
+        return (
+            <div className="flex items-center gap-1 ml-2">
+                {statusIcon}
+                <span className="text-xs text-gray-500">
+                    {message.status.charAt(0).toUpperCase() + message.status.slice(1)}
+                </span>
+            </div>
+        );
+    };
+
+    const renderUserStatus = (user) => {
+        const status = userStatuses[user.id];
+        if (!status) return null;
+
+        return (
+            <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${status.isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
+                <span className="text-xs text-gray-500">
+                    {status.isOnline ? 'Online' : status.lastSeen}
+                </span>
+            </div>
+        );
     };
 
     return (
@@ -208,9 +337,12 @@ export default function Chat({ auth }) {
                                                         <div className={`flex ${message.sender_id === auth.user.id ? 'justify-end' : 'justify-start'} mb-4`}>
                                                             <div className={`max-w-[70%] ${message.sender_id === auth.user.id ? 'bg-blue-500 text-white' : 'bg-gray-100'} rounded-lg p-3`}>
                                                                 <p>{message.content}</p>
-                                                                <p className={`text-xs mt-1 ${message.sender_id === auth.user.id ? 'text-blue-100' : 'text-gray-500'}`}>
-                                                                    {formatTime(message.created_at)}
-                                                                </p>
+                                                                <div className="flex items-center justify-end mt-1">
+                                                                    <p className={`text-xs ${message.sender_id === auth.user.id ? 'text-blue-100' : 'text-gray-500'}`}>
+                                                                        {formatTime(message.created_at)}
+                                                                    </p>
+                                                                    {renderMessageStatus(message)}
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>

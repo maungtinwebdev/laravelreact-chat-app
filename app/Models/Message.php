@@ -19,7 +19,8 @@ class Message extends Model
         'content',
         'sender_id',
         'receiver_id',
-        'is_read',
+        'read_at',
+        'status',
     ];
 
     /**
@@ -28,7 +29,7 @@ class Message extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'is_read' => 'boolean',
+        'read_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

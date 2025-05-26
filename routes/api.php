@@ -2,7 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\MessageController;
+use App\Http\Controllers\ChatController;
 use App\Models\User;
 
 /*
@@ -22,11 +22,14 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // Chat API routes
-    Route::prefix('chat')->group(function () {
-        Route::get('/', [MessageController::class, 'index']);
-        // Route::post('/messages', [MessageController::class, 'store']);
-        // Route::post('/messages/{id}/read', [MessageController::class, 'markAsRead']);
-        Route::get('/messages/unread-count', [MessageController::class, 'getUnreadCount']);
+    Route::prefix('chats')->group(function () {
+        Route::get('/', [ChatController::class, 'index']);
+        Route::post('/', [ChatController::class, 'store']);
+        Route::get('/{userId}', [ChatController::class, 'show']);
+        Route::get('/messages/unread-count', [ChatController::class, 'getUnreadCount']);
+        Route::get('/users', [ChatController::class, 'getUsers']);
+        Route::post('/messages/{messageId}/delivered', [ChatController::class, 'markAsDelivered']);
+        Route::post('/messages/{messageId}/seen', [ChatController::class, 'markAsSeen']);
     });
 });
 
