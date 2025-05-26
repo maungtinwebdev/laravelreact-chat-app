@@ -216,26 +216,25 @@ export default function Chat({ auth }) {
     const renderMessageStatus = (message) => {
         if (message.sender_id !== auth.user.id) return null;
 
-        let statusIcon;
+        let statusText;
         switch (message.status) {
             case 'sent':
-                statusIcon = <Check className="w-3 h-3" />;
+                statusText = 'ပို့ပြီး';
                 break;
             case 'delivered':
-                statusIcon = <CheckCheck className="w-3 h-3" />;
+                statusText = 'ရောက်ရှိပြီး';
                 break;
             case 'seen':
-                statusIcon = <CheckCheck className="w-3 h-3 text-blue-500" />;
+                statusText = 'ဖတ်ပြီး';
                 break;
             default:
-                statusIcon = <Check className="w-3 h-3" />;
+                statusText = 'ပို့ပြီး';
         }
 
         return (
-            <div className="flex items-center gap-1 ml-2">
-                {statusIcon}
+            <div className="flex items-center gap-1 mt-1">
                 <span className="text-xs text-gray-500">
-                    {message.status.charAt(0).toUpperCase() + message.status.slice(1)}
+                    {statusText}
                 </span>
             </div>
         );
@@ -337,7 +336,7 @@ export default function Chat({ auth }) {
                                                         <div className={`flex ${message.sender_id === auth.user.id ? 'justify-end' : 'justify-start'} mb-4`}>
                                                             <div className={`max-w-[70%] ${message.sender_id === auth.user.id ? 'bg-blue-500 text-white' : 'bg-gray-100'} rounded-lg p-3`}>
                                                                 <p>{message.content}</p>
-                                                                <div className="flex items-center justify-end mt-1">
+                                                                <div className="flex flex-col items-end mt-1">
                                                                     <p className={`text-xs ${message.sender_id === auth.user.id ? 'text-blue-100' : 'text-gray-500'}`}>
                                                                         {formatTime(message.created_at)}
                                                                     </p>
