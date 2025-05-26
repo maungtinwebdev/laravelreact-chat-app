@@ -24,8 +24,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Chat API routes
     Route::prefix('chat')->group(function () {
         Route::get('/', [MessageController::class, 'index']);
-        Route::post('/messages', [MessageController::class, 'store']);
-        Route::post('/messages/{id}/read', [MessageController::class, 'markAsRead']);
+        // Route::post('/messages', [MessageController::class, 'store']);
+        // Route::post('/messages/{id}/read', [MessageController::class, 'markAsRead']);
         Route::get('/messages/unread-count', [MessageController::class, 'getUnreadCount']);
     });
 });

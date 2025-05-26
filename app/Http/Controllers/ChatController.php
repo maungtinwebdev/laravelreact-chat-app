@@ -12,8 +12,8 @@ class ChatController extends Controller
         return Inertia::render('Chat');
     }
 
-    public function chatRoom()
-    {
-        return Inertia::render('ChatRoom');
-    }
+    // public function chatRoom()
+    // {
+    //     return Inertia::render('ChatRoom');
+    // }
 }
