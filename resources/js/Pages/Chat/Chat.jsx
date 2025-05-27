@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../supabaseClient';
-import { Image, Send, Paperclip, X, Loader2 } from 'lucide-react';
+import { Image, Send, Paperclip, X, Loader2, Menu, ChevronLeft, Users, Search, MoreVertical } from 'lucide-react';
 
 export default function Chat({ users: initialUsers, auth }) {
     const [message, setMessage] = useState('');
@@ -19,6 +19,33 @@ export default function Chat({ users: initialUsers, auth }) {
     const channelRef = useRef(null);
     const usersListRef = useRef(null);
     const imageInputRef = useRef(null);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+
+    // Filter users based on search
+    const filteredUsers = users.filter(user =>
+        user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    // Handle window resize
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth >= 768) {
+                setIsMobileMenuOpen(false);
+            }
+        };
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    // Toggle user list
+    const toggleUserList = () => {
+        if (window.innerWidth < 768) {
+            setIsMobileMenuOpen(!isMobileMenuOpen);
+        }
+    };
 
     // Subscribe to user presence
     useEffect(() => {
@@ -362,53 +389,84 @@ export default function Chat({ users: initialUsers, auth }) {
     };
 
     return (
-        <div className="flex h-[600px]">
-            {/* Users List */}
-            <div className="w-1/4 border-r bg-gray-50 flex flex-col">
-                <div className="p-4 border-b flex justify-between items-center">
-                    <h2 className="text-lg font-semibold">Users</h2>
-                    {newUserCount > 0 && (
-                        <span className="bg-indigo-600 text-white text-xs font-medium px-2 py-1 rounded-full">
-                            {newUserCount} new
-                        </span>
-                    )}
+        <div className="flex h-[600px] md:h-[calc(100vh-4rem)] relative bg-gray-50">
+            {/* Mobile Menu Button */}
+            <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="md:hidden fixed top-4 left-4 z-20 p-2 text-gray-600 hover:text-indigo-600 bg-green-500 rounded-full shadow-lg hover:shadow-xl transition-all duration-200"
+            >
+                <Menu className="w-6 h-6" />
+            </button>
+
+            {/* Users List - Mobile Responsive */}
+            <div className={`
+                fixed md:relative w-[90%] md:w-1/4 h-full bg-white
+                transform transition-transform duration-300 ease-in-out z-10
+                ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+                shadow-xl md:shadow-none border-r border-gray-200 top-[50px]
+            `}>
+                {/* User List Header */}
+                <div className="p-4 border-b border-gray-200 bg-white">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                            <Users className="w-6 h-6 text-indigo-600" />
+                            Messages
+                        </h2>
+                        <button className="p-2 text-gray-500 hover:text-indigo-600 rounded-full hover:bg-gray-100">
+                            <MoreVertical className="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    {/* Search Bar */}
+                    <div className="relative">
+                        <input
+                            type="text"
+                            placeholder="Search users..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
+                        />
+                        <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                    </div>
                 </div>
+
+                {/* Users List */}
                 <div
                     ref={usersListRef}
-                    className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-hide"
-                    style={{
-                        scrollbarWidth: 'none',
-                        msOverflowStyle: 'none',
-                    }}
+                    className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-hide"
                 >
-                    <style>
-                        {`
-                            .scrollbar-hide::-webkit-scrollbar {
-                                display: none;
-                            }
-                        `}
-                    </style>
-                    {users.map(user => (
+                    {filteredUsers.map(user => (
                         <button
                             key={user.id}
                             onClick={() => {
                                 setSelectedUser(user);
                                 setNewUserCount(0);
+                                setIsMobileMenuOpen(false);
                             }}
-                            className={`w-full text-left p-2 rounded-lg transition-colors duration-200 relative ${
-                                selectedUser?.id === user.id
-                                    ? 'bg-indigo-100 text-indigo-700'
-                                    : 'hover:bg-gray-100'
-                            }`}
+                            className={`w-full text-left p-3 rounded-xl transition-all duration-200 relative
+                                ${selectedUser?.id === user.id
+                                    ? 'bg-indigo-50 text-indigo-700 shadow-sm'
+                                    : 'hover:bg-gray-50'
+                                }`}
                         >
-                            <div className="flex items-center gap-2">
-                                {renderUserAvatar(user)}
-                                <div className="flex flex-col">
-                                    <span className="font-medium">{user.name}</span>
-                                    <span className="text-xs text-gray-500">{user.email}</span>
+                            <div className="flex items-center gap-3">
+                                <div className="relative">
+                                    {renderUserAvatar(user)}
+                                    {onlineUsers.has(user.id) && (
+                                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>
+                                    )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between">
+                                        <span className="font-semibold truncate">{user.name}</span>
+                                        <span className="text-xs text-gray-500">
+                                            {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                    </div>
+                                    <p className="text-sm text-gray-500 truncate">{user.email}</p>
                                 </div>
                                 {unreadMessages[user.id] > 0 && (
-                                    <span className="absolute right-2 top-1/2 -translate-y-1/2 bg-indigo-600 text-white text-xs font-medium px-2 py-1 rounded-full">
+                                    <span className="bg-indigo-600 text-white text-xs font-medium px-2 py-1 rounded-full min-w-[20px] text-center">
                                         {unreadMessages[user.id]}
                                     </span>
                                 )}
@@ -418,24 +476,42 @@ export default function Chat({ users: initialUsers, auth }) {
                 </div>
             </div>
 
-            {/* Chat Area */}
-            <div className="flex-1 flex flex-col">
+            {/* Overlay for mobile menu */}
+            {isMobileMenuOpen && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-50 z-0 md:hidden backdrop-blur-sm"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                />
+            )}
+
+            {/* Chat Area - Mobile Responsive */}
+            <div className="flex-1 flex flex-col w-full bg-white">
                 {selectedUser ? (
                     <>
                         {/* Chat Header */}
-                        <div className="p-4 border-b">
-                            <div className="flex items-center gap-2">
-                                {renderUserAvatar(selectedUser)}
-                                <div className="flex flex-col">
-                                    <span className="font-semibold">{selectedUser.name}</span>
-                                    <span className="text-xs text-gray-500">{selectedUser.email}</span>
+                        <div className="p-4 border-b border-gray-200 bg-white shadow-sm">
+                            <div className="flex items-center gap-3">
+                                <div className="relative">
+                                    {renderUserAvatar(selectedUser)}
+                                    {onlineUsers.has(selectedUser.id) && (
+                                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>
+                                    )}
                                 </div>
+                                <div className="flex-1">
+                                    <h3 className="font-semibold text-gray-800">{selectedUser.name}</h3>
+                                    <p className="text-sm text-gray-500">
+                                        {onlineUsers.has(selectedUser.id) ? 'Online' : 'Offline'}
+                                    </p>
+                                </div>
+                                <button className="p-2 text-gray-500 hover:text-indigo-600 rounded-full hover:bg-gray-100">
+                                    <MoreVertical className="w-5 h-5" />
+                                </button>
                             </div>
                         </div>
 
                         {/* Messages */}
                         <div
-                            className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide"
+                            className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide bg-gray-50"
                             style={{
                                 scrollbarWidth: 'none',
                                 msOverflowStyle: 'none',
@@ -449,7 +525,7 @@ export default function Chat({ users: initialUsers, auth }) {
                                     }`}
                                 >
                                     <div
-                                        className={`flex max-w-[70%] ${
+                                        className={`flex max-w-[85%] md:max-w-[70%] ${
                                             msg.sender_id === auth.user.id
                                                 ? 'flex-row-reverse'
                                                 : 'flex-row'
@@ -457,10 +533,10 @@ export default function Chat({ users: initialUsers, auth }) {
                                     >
                                         {renderUserAvatar(msg.sender)}
                                         <div
-                                            className={`rounded-lg px-4 py-2 ${
+                                            className={`rounded-2xl px-4 py-2 ${
                                                 msg.sender_id === auth.user.id
                                                     ? 'bg-indigo-600 text-white'
-                                                    : 'bg-gray-100 text-gray-800'
+                                                    : 'bg-white text-gray-800 shadow-sm'
                                             }`}
                                         >
                                             {msg.image_url && (
@@ -473,7 +549,7 @@ export default function Chat({ users: initialUsers, auth }) {
                                                     />
                                                 </div>
                                             )}
-                                            {msg.content && <p>{msg.content}</p>}
+                                            {msg.content && <p className="break-words">{msg.content}</p>}
                                             <span
                                                 className={`text-xs ${
                                                     msg.sender_id === auth.user.id
@@ -494,7 +570,7 @@ export default function Chat({ users: initialUsers, auth }) {
                         </div>
 
                         {/* Message Input */}
-                        <div className="border-t p-4">
+                        <div className="border-t border-gray-200 p-4 bg-white">
                             {imagePreview && (
                                 <div className="mb-4 relative">
                                     <img
@@ -504,7 +580,7 @@ export default function Chat({ users: initialUsers, auth }) {
                                     />
                                     <button
                                         onClick={cancelImageUpload}
-                                        className="absolute top-2 right-2 bg-gray-800 bg-opacity-50 rounded-full p-1"
+                                        className="absolute top-2 right-2 bg-gray-800 bg-opacity-50 rounded-full p-1 hover:bg-opacity-70 transition-all duration-200"
                                     >
                                         <X className="w-4 h-4 text-white" />
                                     </button>
@@ -522,7 +598,7 @@ export default function Chat({ users: initialUsers, auth }) {
                                     <button
                                         type="button"
                                         onClick={() => imageInputRef.current?.click()}
-                                        className="p-2 text-gray-500 hover:text-indigo-600"
+                                        className="p-2 text-gray-500 hover:text-indigo-600 rounded-full hover:bg-gray-100 transition-all duration-200"
                                     >
                                         <Paperclip className="w-5 h-5" />
                                     </button>
@@ -531,17 +607,17 @@ export default function Chat({ users: initialUsers, auth }) {
                                         value={message}
                                         onChange={(e) => setMessage(e.target.value)}
                                         placeholder="Type your message..."
-                                        className="flex-1 rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                        className="flex-1 rounded-full border border-gray-200 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
                                     />
                                     <button
                                         type="submit"
                                         disabled={uploadingImage || (!message.trim() && !selectedImage)}
-                                        className="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="rounded-full bg-indigo-600 p-2 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                                     >
                                         {uploadingImage ? (
                                             <div className="flex items-center gap-2">
                                                 <Loader2 className="w-4 h-4 animate-spin" />
-                                                <span>Uploading...</span>
+                                                <span className="hidden md:inline">Uploading...</span>
                                             </div>
                                         ) : (
                                             <Send className="w-5 h-5" />
@@ -549,9 +625,9 @@ export default function Chat({ users: initialUsers, auth }) {
                                     </button>
                                 </div>
                                 {uploadProgress > 0 && (
-                                    <div className="w-full bg-gray-200 rounded-full h-2">
+                                    <div className="w-full bg-gray-200 rounded-full h-1.5">
                                         <div
-                                            className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+                                            className="bg-indigo-600 h-1.5 rounded-full transition-all duration-300"
                                             style={{ width: `${uploadProgress}%` }}
                                         />
                                     </div>
@@ -561,7 +637,11 @@ export default function Chat({ users: initialUsers, auth }) {
                     </>
                 ) : (
                     <div className="flex-1 flex items-center justify-center text-gray-500">
-                        Select a user to start chatting
+                        <div className="text-center">
+                            <Users className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                            <h3 className="text-xl font-semibold text-gray-600 mb-2">No Chat Selected</h3>
+                            <p className="text-gray-500">Choose a user to start chatting</p>
+                        </div>
                     </div>
                 )}
             </div>
