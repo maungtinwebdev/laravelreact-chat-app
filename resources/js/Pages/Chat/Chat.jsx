@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../supabaseClient';
+import { Image, Send, Paperclip, X, Loader2 } from 'lucide-react';
 
 export default function Chat({ users: initialUsers, auth }) {
     const [message, setMessage] = useState('');
@@ -10,9 +11,14 @@ export default function Chat({ users: initialUsers, auth }) {
     const [newUserCount, setNewUserCount] = useState(0);
     const [unreadMessages, setUnreadMessages] = useState({});
     const [lastMessageIds, setLastMessageIds] = useState({});
+    const [selectedImage, setSelectedImage] = useState(null);
+    const [imagePreview, setImagePreview] = useState(null);
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
     const messagesEndRef = useRef(null);
     const channelRef = useRef(null);
     const usersListRef = useRef(null);
+    const imageInputRef = useRef(null);
 
     // Subscribe to user presence
     useEffect(() => {
@@ -230,17 +236,78 @@ export default function Chat({ users: initialUsers, auth }) {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
+    const handleImageSelect = (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            alert('Please select an image file');
+            return;
+        }
+
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Image size should be less than 5MB');
+            return;
+        }
+
+        setSelectedImage(file);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setImagePreview(reader.result);
+        };
+        reader.readAsDataURL(file);
+    };
+
     const handleSendMessage = async (e) => {
         e.preventDefault();
-        if (!message.trim() || !selectedUser) return;
+        if ((!message.trim() && !selectedImage) || !selectedUser) return;
 
         try {
+            let imageUrl = null;
+            let imagePath = null;
+
+            // Upload image if selected
+            if (selectedImage) {
+                setUploadingImage(true);
+                setUploadProgress(0);
+
+                // Create a unique file name
+                const fileExt = selectedImage.name.split('.').pop();
+                const fileName = `${auth.user.id}-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+                const filePath = `chat-images/${fileName}`;
+
+                // Upload to Supabase Storage
+                const { data, error } = await supabase.storage
+                    .from('chat-images')
+                    .upload(filePath, selectedImage, {
+                        cacheControl: '3600',
+                        upsert: true,
+                        contentType: selectedImage.type
+                    });
+
+                if (error) {
+                    throw new Error(error.message || 'Failed to upload image');
+                }
+
+                // Get public URL
+                const { data: { publicUrl } } = supabase.storage
+                    .from('chat-images')
+                    .getPublicUrl(filePath);
+
+                imageUrl = publicUrl;
+                imagePath = filePath;
+            }
+
             // Create message object
             const messageData = {
                 content: message.trim(),
                 sender_id: auth.user.id,
                 receiver_id: selectedUser.id,
-                created_at: new Date().toISOString()
+                created_at: new Date().toISOString(),
+                image_url: imageUrl,
+                image_path: imagePath
             };
 
             // Insert message into database
@@ -258,10 +325,24 @@ export default function Chat({ users: initialUsers, auth }) {
                 [selectedUser.id]: newMessage.id
             }));
 
+            // Reset states
             setMessage('');
+            setSelectedImage(null);
+            setImagePreview(null);
+            setUploadProgress(0);
+
         } catch (error) {
             console.error('Error sending message:', error);
+            alert(error.message || 'Failed to send message');
+        } finally {
+            setUploadingImage(false);
         }
+    };
+
+    const cancelImageUpload = () => {
+        setSelectedImage(null);
+        setImagePreview(null);
+        setUploadProgress(0);
     };
 
     const renderUserAvatar = (user) => {
@@ -382,7 +463,17 @@ export default function Chat({ users: initialUsers, auth }) {
                                                     : 'bg-gray-100 text-gray-800'
                                             }`}
                                         >
-                                            <p>{msg.content}</p>
+                                            {msg.image_url && (
+                                                <div className="mb-2">
+                                                    <img
+                                                        src={msg.image_url}
+                                                        alt="Shared image"
+                                                        className="max-w-full rounded-lg"
+                                                        style={{ maxHeight: '300px' }}
+                                                    />
+                                                </div>
+                                            )}
+                                            {msg.content && <p>{msg.content}</p>}
                                             <span
                                                 className={`text-xs ${
                                                     msg.sender_id === auth.user.id
@@ -404,8 +495,37 @@ export default function Chat({ users: initialUsers, auth }) {
 
                         {/* Message Input */}
                         <div className="border-t p-4">
+                            {imagePreview && (
+                                <div className="mb-4 relative">
+                                    <img
+                                        src={imagePreview}
+                                        alt="Preview"
+                                        className="max-h-32 rounded-lg"
+                                    />
+                                    <button
+                                        onClick={cancelImageUpload}
+                                        className="absolute top-2 right-2 bg-gray-800 bg-opacity-50 rounded-full p-1"
+                                    >
+                                        <X className="w-4 h-4 text-white" />
+                                    </button>
+                                </div>
+                            )}
                             <form onSubmit={handleSendMessage} className="space-y-2">
                                 <div className="flex gap-2">
+                                    <input
+                                        type="file"
+                                        ref={imageInputRef}
+                                        onChange={handleImageSelect}
+                                        accept="image/*"
+                                        className="hidden"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => imageInputRef.current?.click()}
+                                        className="p-2 text-gray-500 hover:text-indigo-600"
+                                    >
+                                        <Paperclip className="w-5 h-5" />
+                                    </button>
                                     <input
                                         type="text"
                                         value={message}
@@ -415,11 +535,27 @@ export default function Chat({ users: initialUsers, auth }) {
                                     />
                                     <button
                                         type="submit"
-                                        className="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                                        disabled={uploadingImage || (!message.trim() && !selectedImage)}
+                                        className="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        Send
+                                        {uploadingImage ? (
+                                            <div className="flex items-center gap-2">
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                <span>Uploading...</span>
+                                            </div>
+                                        ) : (
+                                            <Send className="w-5 h-5" />
+                                        )}
                                     </button>
                                 </div>
+                                {uploadProgress > 0 && (
+                                    <div className="w-full bg-gray-200 rounded-full h-2">
+                                        <div
+                                            className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+                                            style={{ width: `${uploadProgress}%` }}
+                                        />
+                                    </div>
+                                )}
                             </form>
                         </div>
                     </>
