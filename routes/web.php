@@ -12,6 +12,10 @@ Route::get('/users', function() {
     ]);
 });
 
+Route::get('/chat', function () {
+    return Inertia::render('Chat');
+})->middleware(['auth', 'verified']);
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Request $request) {
         return $request->user();

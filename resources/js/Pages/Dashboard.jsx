@@ -73,7 +73,9 @@ export default function Dashboard({ auth }) {
                     </div>
                 </div>
 
-                <div className="mt-8 mx-auto max-w-7xl sm:px-6 lg:px-8">
+
+
+                {/* <div className="mt-8 mx-auto max-w-7xl sm:px-6 lg:px-8">
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         {loading ? (
                             <div className="p-6 text-center text-gray-500">
@@ -87,7 +89,7 @@ export default function Dashboard({ auth }) {
                             <Chat messages={messages} users={users} auth={auth} />
                         )}
                     </div>
-                </div>
+                </div> */}
             </div>
         </AuthenticatedLayout>
     );

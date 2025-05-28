@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../supabaseClient';
-import { Image, Send, Paperclip, X, Loader2, Menu, ChevronLeft, Users, Search, MoreVertical } from 'lucide-react';
+import { Image, Send, Paperclip, X, Loader2, Menu, ChevronLeft, Users, Search, MoreVertical, Phone, Video } from 'lucide-react';
 
 export default function Chat({ users: initialUsers, auth }) {
     const [message, setMessage] = useState('');
@@ -389,30 +389,30 @@ export default function Chat({ users: initialUsers, auth }) {
     };
 
     return (
-        <div className="flex h-[600px] md:h-[calc(100vh-4rem)] relative bg-gray-50">
+        <div className="flex h-[calc(100vh-4rem)] relative bg-[#f0f2f5]">
             {/* Mobile Menu Button */}
             <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="md:hidden fixed top-4 left-4 z-20 p-2 text-gray-600 hover:text-indigo-600 bg-green-500 rounded-full shadow-lg hover:shadow-xl transition-all duration-200"
+                className="md:hidden fixed top-4 left-4 z-20 p-2 text-white bg-[#0084ff] rounded-full shadow-lg hover:bg-[#0073e6] transition-all duration-200"
             >
                 <Menu className="w-6 h-6" />
             </button>
 
             {/* Users List - Mobile Responsive */}
             <div className={`
-                fixed md:relative w-[90%] md:w-1/4 h-full bg-white
+                fixed md:relative w-[85%] md:w-[360px] h-full bg-white
                 transform transition-transform duration-300 ease-in-out z-10
                 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-                shadow-xl md:shadow-none border-r border-gray-200 top-[50px]
+                shadow-xl md:shadow-none border-r border-gray-200
             `}>
                 {/* User List Header */}
-                <div className="p-4 border-b border-gray-200 bg-white">
+                <div className="p-4 border-b border-gray-200 bg-white sticky top-0 z-10">
                     <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                            <Users className="w-6 h-6 text-indigo-600" />
-                            Messages
+                        <h2 className="text-xl font-bold text-[#1c1e21] flex items-center gap-2">
+                            <Users className="w-6 h-6 text-[#0084ff]" />
+                            Chats
                         </h2>
-                        <button className="p-2 text-gray-500 hover:text-indigo-600 rounded-full hover:bg-gray-100">
+                        <button className="p-2 text-gray-500 hover:text-[#0084ff] rounded-full hover:bg-gray-100">
                             <MoreVertical className="w-5 h-5" />
                         </button>
                     </div>
@@ -421,10 +421,10 @@ export default function Chat({ users: initialUsers, auth }) {
                     <div className="relative">
                         <input
                             type="text"
-                            placeholder="Search users..."
+                            placeholder="Search Messenger"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
+                            className="w-full pl-10 pr-4 py-2 rounded-full bg-[#f0f2f5] border-none focus:ring-2 focus:ring-[#0084ff] focus:outline-none transition-all duration-200"
                         />
                         <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
                     </div>
@@ -433,7 +433,7 @@ export default function Chat({ users: initialUsers, auth }) {
                 {/* Users List */}
                 <div
                     ref={usersListRef}
-                    className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-hide"
+                    className="flex-1 overflow-y-auto scrollbar-hide"
                 >
                     {filteredUsers.map(user => (
                         <button
@@ -443,22 +443,19 @@ export default function Chat({ users: initialUsers, auth }) {
                                 setNewUserCount(0);
                                 setIsMobileMenuOpen(false);
                             }}
-                            className={`w-full text-left p-3 rounded-xl transition-all duration-200 relative
-                                ${selectedUser?.id === user.id
-                                    ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                                    : 'hover:bg-gray-50'
-                                }`}
+                            className={`w-full text-left p-3 hover:bg-[#f0f2f5] transition-all duration-200 relative
+                                ${selectedUser?.id === user.id ? 'bg-[#e4e6eb]' : ''}`}
                         >
                             <div className="flex items-center gap-3">
                                 <div className="relative">
                                     {renderUserAvatar(user)}
                                     {onlineUsers.has(user.id) && (
-                                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>
+                                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#31a24c] border-2 border-white rounded-full"></span>
                                     )}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between">
-                                        <span className="font-semibold truncate">{user.name}</span>
+                                        <span className="font-semibold text-[#1c1e21] truncate">{user.name}</span>
                                         <span className="text-xs text-gray-500">
                                             {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </span>
@@ -466,7 +463,7 @@ export default function Chat({ users: initialUsers, auth }) {
                                     <p className="text-sm text-gray-500 truncate">{user.email}</p>
                                 </div>
                                 {unreadMessages[user.id] > 0 && (
-                                    <span className="bg-indigo-600 text-white text-xs font-medium px-2 py-1 rounded-full min-w-[20px] text-center">
+                                    <span className="bg-[#0084ff] text-white text-xs font-medium px-2 py-1 rounded-full min-w-[20px] text-center">
                                         {unreadMessages[user.id]}
                                     </span>
                                 )}
@@ -489,29 +486,43 @@ export default function Chat({ users: initialUsers, auth }) {
                 {selectedUser ? (
                     <>
                         {/* Chat Header */}
-                        <div className="p-4 border-b border-gray-200 bg-white shadow-sm">
+                        <div className="p-3 border-b border-gray-200 bg-white shadow-sm sticky top-0 z-10">
                             <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => setIsMobileMenuOpen(true)}
+                                    className="md:hidden p-2 text-gray-500 hover:text-[#0084ff] rounded-full hover:bg-gray-100"
+                                >
+                                    <ChevronLeft className="w-5 h-5" />
+                                </button>
                                 <div className="relative">
                                     {renderUserAvatar(selectedUser)}
                                     {onlineUsers.has(selectedUser.id) && (
-                                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>
+                                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#31a24c] border-2 border-white rounded-full"></span>
                                     )}
                                 </div>
                                 <div className="flex-1">
-                                    <h3 className="font-semibold text-gray-800">{selectedUser.name}</h3>
-                                    <p className="text-sm text-gray-500">
-                                        {onlineUsers.has(selectedUser.id) ? 'Online' : 'Offline'}
+                                    <h3 className="font-semibold text-[#1c1e21]">{selectedUser.name}</h3>
+                                    <p className="text-sm text-[#31a24c]">
+                                        {onlineUsers.has(selectedUser.id) ? 'Active now' : 'Offline'}
                                     </p>
                                 </div>
-                                <button className="p-2 text-gray-500 hover:text-indigo-600 rounded-full hover:bg-gray-100">
-                                    <MoreVertical className="w-5 h-5" />
-                                </button>
+                                <div className="flex gap-2">
+                                    <button className="p-2 text-gray-500 hover:text-[#0084ff] rounded-full hover:bg-gray-100">
+                                        <Phone className="w-5 h-5" />
+                                    </button>
+                                    <button className="p-2 text-gray-500 hover:text-[#0084ff] rounded-full hover:bg-gray-100">
+                                        <Video className="w-5 h-5" />
+                                    </button>
+                                    <button className="p-2 text-gray-500 hover:text-[#0084ff] rounded-full hover:bg-gray-100">
+                                        <MoreVertical className="w-5 h-5" />
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
                         {/* Messages */}
                         <div
-                            className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide bg-gray-50"
+                            className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide bg-[#f0f2f5]"
                             style={{
                                 scrollbarWidth: 'none',
                                 msOverflowStyle: 'none',
@@ -535,8 +546,8 @@ export default function Chat({ users: initialUsers, auth }) {
                                         <div
                                             className={`rounded-2xl px-4 py-2 ${
                                                 msg.sender_id === auth.user.id
-                                                    ? 'bg-indigo-600 text-white'
-                                                    : 'bg-white text-gray-800 shadow-sm'
+                                                    ? 'bg-[#0084ff] text-white'
+                                                    : 'bg-white text-[#1c1e21] shadow-sm'
                                             }`}
                                         >
                                             {msg.image_url && (
@@ -553,7 +564,7 @@ export default function Chat({ users: initialUsers, auth }) {
                                             <span
                                                 className={`text-xs ${
                                                     msg.sender_id === auth.user.id
-                                                        ? 'text-indigo-200'
+                                                        ? 'text-[#e4e6eb]'
                                                         : 'text-gray-500'
                                                 }`}
                                             >
@@ -570,7 +581,7 @@ export default function Chat({ users: initialUsers, auth }) {
                         </div>
 
                         {/* Message Input */}
-                        <div className="border-t border-gray-200 p-4 bg-white">
+                        <div className="border-t border-gray-200 p-3 bg-white">
                             {imagePreview && (
                                 <div className="mb-4 relative">
                                     <img
@@ -598,7 +609,7 @@ export default function Chat({ users: initialUsers, auth }) {
                                     <button
                                         type="button"
                                         onClick={() => imageInputRef.current?.click()}
-                                        className="p-2 text-gray-500 hover:text-indigo-600 rounded-full hover:bg-gray-100 transition-all duration-200"
+                                        className="p-2 text-gray-500 hover:text-[#0084ff] rounded-full hover:bg-gray-100 transition-all duration-200"
                                     >
                                         <Paperclip className="w-5 h-5" />
                                     </button>
@@ -606,13 +617,13 @@ export default function Chat({ users: initialUsers, auth }) {
                                         type="text"
                                         value={message}
                                         onChange={(e) => setMessage(e.target.value)}
-                                        placeholder="Type your message..."
-                                        className="flex-1 rounded-full border border-gray-200 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
+                                        placeholder="Aa"
+                                        className="flex-1 rounded-full bg-[#f0f2f5] border-none px-4 py-2 focus:ring-2 focus:ring-[#0084ff] focus:outline-none transition-all duration-200"
                                     />
                                     <button
                                         type="submit"
                                         disabled={uploadingImage || (!message.trim() && !selectedImage)}
-                                        className="rounded-full bg-indigo-600 p-2 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                                        className="rounded-full bg-[#0084ff] p-2 text-white hover:bg-[#0073e6] focus:outline-none focus:ring-2 focus:ring-[#0084ff] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                                     >
                                         {uploadingImage ? (
                                             <div className="flex items-center gap-2">
@@ -627,7 +638,7 @@ export default function Chat({ users: initialUsers, auth }) {
                                 {uploadProgress > 0 && (
                                     <div className="w-full bg-gray-200 rounded-full h-1.5">
                                         <div
-                                            className="bg-indigo-600 h-1.5 rounded-full transition-all duration-300"
+                                            className="bg-[#0084ff] h-1.5 rounded-full transition-all duration-300"
                                             style={{ width: `${uploadProgress}%` }}
                                         />
                                     </div>
@@ -639,7 +650,7 @@ export default function Chat({ users: initialUsers, auth }) {
                     <div className="flex-1 flex items-center justify-center text-gray-500">
                         <div className="text-center">
                             <Users className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                            <h3 className="text-xl font-semibold text-gray-600 mb-2">No Chat Selected</h3>
+                            <h3 className="text-xl font-semibold text-[#1c1e21] mb-2">No Chat Selected</h3>
                             <p className="text-gray-500">Choose a user to start chatting</p>
                         </div>
                     </div>
