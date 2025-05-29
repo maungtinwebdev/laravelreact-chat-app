@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../supabaseClient';
 import { Image, Send, Paperclip, X, Loader2, Menu, ChevronLeft, Users, Search, MoreVertical, Phone, Video } from 'lucide-react';
+import { DateTime } from 'luxon';
 
 export default function Chat({ users: initialUsers, auth }) {
     const [message, setMessage] = useState('');
@@ -21,6 +22,45 @@ export default function Chat({ users: initialUsers, auth }) {
     const imageInputRef = useRef(null);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [userTimezone, setUserTimezone] = useState('');
+
+    // Get user's timezone on component mount
+    useEffect(() => {
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        setUserTimezone(timezone);
+    }, []);
+
+    // Format message time in user's timezone
+    const formatMessageTime = (timestamp) => {
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const date = DateTime.fromISO(timestamp, { zone: 'utc' }).setZone(timezone);
+        const now = DateTime.now().setZone(timezone);
+        const isToday = date.hasSame(now, 'day');
+        const isYesterday = date.hasSame(now.minus({ days: 1 }), 'day');
+
+        const timeString = date.toFormat('h:mm a');
+
+        if (isToday) {
+            return timeString;
+        } else if (isYesterday) {
+            return `Yesterday at ${timeString}`;
+        } else {
+            return date.toFormat('MMM d') + (date.year !== now.year ? `, ${date.year}` : '') + ` at ${timeString}`;
+        }
+    };
+
+    const getMessageDateHeader = (timestamp) => {
+        const date = DateTime.fromISO(timestamp).setZone('Asia/Yangon');
+        const now = DateTime.now().setZone('Asia/Yangon');
+
+        if (date.hasSame(now, 'day')) {
+            return 'Today';
+        } else if (date.hasSame(now.minus({ days: 1 }), 'day')) {
+            return 'Yesterday';
+        } else {
+            return date.toFormat('EEEE, MMMM d') + (date.year !== now.year ? `, ${date.year}` : '');
+        }
+    };
 
     // Filter users based on search
     const filteredUsers = users.filter(user =>
@@ -508,9 +548,14 @@ export default function Chat({ users: initialUsers, auth }) {
                                 </div>
                                 <div className="flex-1">
                                     <h3 className="font-semibold text-[#1c1e21]">{selectedUser.name}</h3>
-                                    <p className="text-sm text-[#31a24c]">
-                                        {onlineUsers.has(selectedUser.id) ? 'Active now' : 'Offline'}
-                                    </p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-sm text-[#31a24c]">
+                                            {onlineUsers.has(selectedUser.id) ? 'Active' : 'Offline'}
+                                        </p>
+                                        <span className="text-xs text-gray-500">•</span>
+                                        <p className="text-xs text-gray-500"> {userTimezone}
+                                        </p>
+                                    </div>
                                 </div>
                                 <div className="flex gap-2">
                                     <button className="p-2 text-gray-500 hover:text-[#0084ff] rounded-full hover:bg-gray-100">
@@ -534,55 +579,71 @@ export default function Chat({ users: initialUsers, auth }) {
                                 msOverflowStyle: 'none',
                             }}
                         >
-                            {messages.map((msg) => (
-                                <div
-                                    key={msg.id}
-                                    className={`flex ${
-                                        msg.sender_id === auth.user.id ? 'justify-end' : 'justify-start'
-                                    }`}
-                                >
-                                    <div
-                                        className={`flex max-w-[85%] md:max-w-[70%] ${
-                                            msg.sender_id === auth.user.id
-                                                ? 'flex-row-reverse'
-                                                : 'flex-row'
-                                        } items-end gap-2`}
-                                    >
-                                        {renderUserAvatar(msg.sender)}
+                            {messages.map((msg, index) => {
+                                const showDateHeader = index === 0 ||
+                                    !DateTime.fromISO(msg.created_at)
+                                        .setZone('Asia/Yangon')
+                                        .hasSame(
+                                            DateTime.fromISO(messages[index - 1].created_at)
+                                                .setZone('Asia/Yangon'),
+                                            'day'
+                                        );
+
+                                return (
+                                    <div key={msg.id}>
+                                        {showDateHeader && (
+                                            <div className="flex justify-center my-4">
+                                                <div className="bg-white px-4 py-1 rounded-full text-sm text-gray-500 shadow-sm">
+                                                    {getMessageDateHeader(msg.created_at)}
+                                                </div>
+                                            </div>
+                                        )}
                                         <div
-                                            className={`rounded-2xl px-4 py-2 ${
-                                                msg.sender_id === auth.user.id
-                                                    ? 'bg-[#0084ff] text-white'
-                                                    : 'bg-white text-[#1c1e21] shadow-sm'
+                                            className={`flex ${
+                                                msg.sender_id === auth.user.id ? 'justify-end' : 'justify-start'
                                             }`}
                                         >
-                                            {msg.image_url && (
-                                                <div className="mb-2">
-                                                    <img
-                                                        src={msg.image_url}
-                                                        alt="Shared image"
-                                                        className="max-w-full rounded-lg"
-                                                        style={{ maxHeight: '300px' }}
-                                                    />
-                                                </div>
-                                            )}
-                                            {msg.content && <p className="break-words">{msg.content}</p>}
-                                            <span
-                                                className={`text-xs ${
+                                            <div
+                                                className={`flex max-w-[85%] md:max-w-[70%] ${
                                                     msg.sender_id === auth.user.id
-                                                        ? 'text-[#e4e6eb]'
-                                                        : 'text-gray-500'
-                                                }`}
+                                                        ? 'flex-row-reverse'
+                                                        : 'flex-row'
+                                                } items-end gap-2`}
                                             >
-                                                {new Date(msg.created_at).toLocaleTimeString([], {
-                                                    hour: '2-digit',
-                                                    minute: '2-digit'
-                                                })}
-                                            </span>
+                                                {renderUserAvatar(msg.sender)}
+                                                <div
+                                                    className={`rounded-2xl px-4 py-2 ${
+                                                        msg.sender_id === auth.user.id
+                                                            ? 'bg-[#0084ff] text-white'
+                                                            : 'bg-white text-[#1c1e21] shadow-sm'
+                                                    }`}
+                                                >
+                                                    {msg.image_url && (
+                                                        <div className="mb-2">
+                                                            <img
+                                                                src={msg.image_url}
+                                                                alt="Shared image"
+                                                                className="max-w-full rounded-lg"
+                                                                style={{ maxHeight: '300px' }}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                    {msg.content && <p className="break-words">{msg.content}</p>}
+                                                    <span
+                                                        className={`text-xs ${
+                                                            msg.sender_id === auth.user.id
+                                                                ? 'text-[#e4e6eb]'
+                                                                : 'text-gray-500'
+                                                        }`}
+                                                    >
+                                                        {formatMessageTime(msg.created_at)}
+                                                    </span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                             <div ref={messagesEndRef} />
                         </div>
 
