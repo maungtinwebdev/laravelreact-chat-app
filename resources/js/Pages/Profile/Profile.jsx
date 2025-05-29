@@ -56,6 +56,21 @@ export default function Profile({ auth }) {
         fetchUserData();
     }, [auth.user.id]);
 
+    const getProfileImageUrl = () => {
+        if (user?.profile_photo) {
+            // If the profile photo is a full URL, use it directly
+            if (user.profile_photo.startsWith('http')) {
+                return user.profile_photo;
+            }
+            // If it's a Supabase storage path, get the public URL
+            return supabase.storage
+                .from('profile-photos')
+                .getPublicUrl(user.profile_photo).data.publicUrl;
+        }
+        // Fallback to UI Avatars if no profile photo
+        return `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=7C3AED&color=fff&size=128`;
+    };
+
     const handlePhotoSelect = (event) => {
         const file = event.target.files[0];
         if (!file) return;
@@ -182,9 +197,13 @@ export default function Profile({ auth }) {
                         <div className="relative group">
                             <div className="relative">
                                 <img
-                                    src={photoPreview || user?.profile_photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=7C3AED&color=fff&size=128`}
+                                    src={getProfileImageUrl()}
                                     alt={user?.name}
                                     className="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover"
+                                    onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=7C3AED&color=fff&size=128`;
+                                    }}
                                 />
                                 {uploadingPhoto && (
                                     <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full">
