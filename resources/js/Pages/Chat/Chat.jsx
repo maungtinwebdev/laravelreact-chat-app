@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../supabaseClient';
-import { Image, Send, Paperclip, X, Loader2, Menu, ChevronLeft, Users, Search, MoreVertical, Phone, Video } from 'lucide-react';
+import { Image, Send, Paperclip, X, Loader2, Menu, ChevronLeft, Users, Search, MoreVertical, Phone, Video, Download } from 'lucide-react';
 import { DateTime } from 'luxon';
 
 export default function Chat({ users: initialUsers, auth }) {
@@ -23,6 +23,7 @@ export default function Chat({ users: initialUsers, auth }) {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [userTimezone, setUserTimezone] = useState('');
+    const [downloadingImage, setDownloadingImage] = useState(false);
 
     // Get user's timezone on component mount
     useEffect(() => {
@@ -428,6 +429,28 @@ export default function Chat({ users: initialUsers, auth }) {
         );
     };
 
+    // Function to download image
+    const downloadImage = async (imageUrl) => {
+        try {
+            setDownloadingImage(true);
+            const response = await fetch(imageUrl);
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `chat-image-${Date.now()}.jpg`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error downloading image:', error);
+            alert('Failed to download image');
+        } finally {
+            setDownloadingImage(false);
+        }
+    };
+
     return (
         <div className="flex h-[calc(100vh-4rem)] relative bg-[#f0f2f5]">
             {/* Mobile Menu Button */}
@@ -619,13 +642,36 @@ export default function Chat({ users: initialUsers, auth }) {
                                                     }`}
                                                 >
                                                     {msg.image_url && (
-                                                        <div className="mb-2">
+                                                        <div className="mb-2 relative group">
                                                             <img
                                                                 src={msg.image_url}
                                                                 alt="Shared image"
-                                                                className="max-w-full rounded-lg"
+                                                                className="max-w-full rounded-lg cursor-pointer"
                                                                 style={{ maxHeight: '300px' }}
+                                                                onClick={() => {
+                                                                    if (window.innerWidth <= 768) {
+                                                                        downloadImage(msg.image_url);
+                                                                    }
+                                                                }}
                                                             />
+                                                            <button
+                                                                onClick={() => downloadImage(msg.image_url)}
+                                                                className="absolute top-2 right-2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white p-2 rounded-full
+                                                                    md:opacity-0 md:group-hover:opacity-100
+                                                                    opacity-100 transition-opacity duration-200"
+                                                                title="Download image"
+                                                            >
+                                                                {downloadingImage ? (
+                                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                                ) : (
+                                                                    <Download className="w-4 h-4" />
+                                                                )}
+                                                            </button>
+                                                            {window.innerWidth <= 768 && (
+                                                                <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded-full">
+                                                                    Tap to save
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     )}
                                                     {msg.content && <p className="break-words">{msg.content}</p>}
