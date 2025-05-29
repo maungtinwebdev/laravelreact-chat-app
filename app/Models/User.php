@@ -24,6 +24,10 @@ class User extends Authenticatable
         'last_active_at',
         'last_seen_at',
         'profile_photo',
+        'is_admin',
+        'status',
+        'banned_at',
+        'suspended_until',
     ];
 
     /**
@@ -45,5 +49,13 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'last_seen_at' => 'datetime',
+        'is_admin' => 'boolean',
+        'banned_at' => 'datetime',
+        'suspended_until' => 'datetime',
     ];
+
+    public function isAdmin(): bool
+    {
+        return $this->is_admin;
+    }
 }

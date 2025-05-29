@@ -41,7 +41,11 @@ Route::get('/', function () {
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', function () {
-        return Inertia::render('Dashboard');
+        return Inertia::render('Dashboard', [
+            'auth' => [
+                'user' => auth()->user()
+            ]
+        ]);
     })->name('dashboard');
 
     Route::get('/chat', function () {
@@ -68,6 +72,22 @@ Route::middleware(['auth'])->group(function () {
             ]
         ]);
     })->name('profile.edit');
+
+    // Admin routes
+    Route::middleware(['admin'])->group(function () {
+        Route::get('/admin/users', function () {
+            try {
+                return Inertia::render('Admin/UserManagement', [
+                    'auth' => [
+                        'user' => auth()->user()
+                    ],
+                    'users' => \App\Models\User::all()
+                ]);
+            } catch (\Exception $e) {
+                return redirect()->route('dashboard')->with('error', 'Error loading user management page.');
+            }
+        })->name('admin.users');
+    });
 
     // Profile routes
     Route::post('/api/profile/update', [ProfileController::class, 'update'])->name('profile.update');
