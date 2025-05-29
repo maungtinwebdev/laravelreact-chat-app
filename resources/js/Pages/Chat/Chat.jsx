@@ -572,9 +572,13 @@ export default function Chat({ users: initialUsers, auth }) {
                                 <div className="flex-1">
                                     <h3 className="font-semibold text-[#1c1e21]">{selectedUser.name}</h3>
                                     <div className="flex items-center gap-2">
+                                    {onlineUsers.has(selectedUser.id) ?
                                         <p className="text-sm text-[#31a24c]">
-                                            {onlineUsers.has(selectedUser.id) ? 'Active' : 'Offline'}
-                                        </p>
+                                             Active
+                                        </p> :
+                                        <p className="text-sm text-slate-500">
+                                            Offline
+                                        </p> }
                                         <span className="text-xs text-gray-500">•</span>
                                         <p className="text-xs text-gray-500"> {userTimezone}
                                         </p>
