@@ -61,9 +61,16 @@ Route::middleware(['auth'])->group(function () {
         ]);
     })->name('profile');
 
-    // Add profile management routes
-    Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::get('/profile/edit', function () {
+        return Inertia::render('Profile/Edit', [
+            'auth' => [
+                'user' => auth()->user()
+            ]
+        ]);
+    })->name('profile.edit');
+
+    // Profile routes
+    Route::post('/api/profile/update', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 

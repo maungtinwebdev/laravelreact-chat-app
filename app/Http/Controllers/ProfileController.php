@@ -8,6 +8,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -27,17 +28,33 @@ class ProfileController extends Controller
     /**
      * Update the user's profile information.
      */
-    public function update(ProfileUpdateRequest $request): RedirectResponse
+    public function update(Request $request)
     {
-        $request->user()->fill($request->validated());
+        $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'profile_photo' => ['nullable', 'image', 'max:2048'], // max 2MB
+        ]);
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        $user = $request->user();
+
+        if ($request->hasFile('profile_photo')) {
+            // Delete old photo if exists
+            if ($user->profile_photo) {
+                Storage::disk('profile_photos')->delete(basename($user->profile_photo));
+            }
+
+            // Store new photo
+            $path = $request->file('profile_photo')->store('', 'profile_photos');
+            $user->profile_photo = Storage::disk('profile_photos')->url($path);
         }
 
-        $request->user()->save();
+        $user->name = $request->name;
+        $user->save();
 
-        return Redirect::route('profile.edit');
+        return response()->json([
+            'message' => 'Profile updated successfully',
+            'profile_photo' => $user->profile_photo
+        ]);
     }
 
     /**
@@ -50,6 +67,11 @@ class ProfileController extends Controller
         ]);
 
         $user = $request->user();
+
+        // Delete profile photo if exists
+        if ($user->profile_photo) {
+            Storage::disk('profile_photos')->delete(basename($user->profile_photo));
+        }
 
         Auth::logout();
 
