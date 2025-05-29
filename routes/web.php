@@ -39,12 +39,30 @@ Route::get('/', function () {
     ]);
 });
 
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::middleware(['auth'])->group(function () {
+    Route::get('/dashboard', function () {
+        return Inertia::render('Dashboard');
+    })->name('dashboard');
 
-Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::get('/chat', function () {
+        return Inertia::render('Chat/Chat', [
+            'users' => \App\Models\User::where('id', '!=', auth()->id())->get(),
+            'auth' => [
+                'user' => auth()->user()
+            ]
+        ]);
+    })->name('chat');
+
+    Route::get('/profile', function () {
+        return Inertia::render('Profile/Profile', [
+            'auth' => [
+                'user' => auth()->user()
+            ]
+        ]);
+    })->name('profile');
+
+    // Add profile management routes
+    Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
