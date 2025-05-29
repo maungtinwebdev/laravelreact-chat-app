@@ -9,6 +9,7 @@ export default function Chat({ users: initialUsers, auth }) {
     const [users, setUsers] = useState(initialUsers || []);
     const [selectedUser, setSelectedUser] = useState(null);
     const [onlineUsers, setOnlineUsers] = useState(new Set());
+    const [lastActive, setLastActive] = useState({});
     const [newUserCount, setNewUserCount] = useState(0);
     const [unreadMessages, setUnreadMessages] = useState({});
     const [lastMessageIds, setLastMessageIds] = useState({});
@@ -88,7 +89,32 @@ export default function Chat({ users: initialUsers, auth }) {
         }
     };
 
-    // Subscribe to user presence
+    // Update last active time in database
+    const updateLastActiveTime = async (userId) => {
+        try {
+            const { error } = await supabase
+                .from('users')
+                .update({ last_active_at: new Date().toISOString() })
+                .eq('id', userId);
+
+            if (error) throw error;
+        } catch (error) {
+            console.error('Error updating last active time:', error);
+        }
+    };
+
+    // Update last active time periodically
+    useEffect(() => {
+        const updateLastActive = async () => {
+            await updateLastActiveTime(auth.user.id);
+        };
+
+        // Update every minute
+        const interval = setInterval(updateLastActive, 60000);
+        return () => clearInterval(interval);
+    }, [auth.user.id]);
+
+    // Subscribe to user presence and fetch last active times
     useEffect(() => {
         const presenceChannel = supabase.channel('online-users')
             .on('presence', { event: 'sync' }, () => {
@@ -111,13 +137,92 @@ export default function Chat({ users: initialUsers, auth }) {
                         user_id: auth.user.id,
                         online_at: new Date().toISOString(),
                     });
+                    await updateLastActiveTime(auth.user.id);
                 }
             });
 
+        // Fetch initial last active times
+        const fetchLastActiveTimes = async () => {
+            try {
+                const { data: users, error } = await supabase
+                    .from('users')
+                    .select('id, last_active_at')
+                    .neq('id', auth.user.id);
+
+                if (error) {
+                    console.error('Error fetching last active times:', error);
+                    return;
+                }
+
+                const lastActiveTimes = {};
+                users.forEach(user => {
+                    if (user.last_active_at) {
+                        lastActiveTimes[user.id] = user.last_active_at;
+                    }
+                });
+                setLastActive(lastActiveTimes);
+            } catch (error) {
+                console.error('Error in fetchLastActiveTimes:', error);
+            }
+        };
+
+        fetchLastActiveTimes();
+
+        // Subscribe to user updates
+        const userChannel = supabase
+            .channel('users-changes')
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'users',
+            }, (payload) => {
+                if (payload.new.id !== auth.user.id) {
+                    setLastActive(prev => ({
+                        ...prev,
+                        [payload.new.id]: payload.new.last_active_at
+                    }));
+                }
+            })
+            .subscribe();
+
+        // Update last active time when user leaves
+        window.addEventListener('beforeunload', async () => {
+            await updateLastActiveTime(auth.user.id);
+        });
+
         return () => {
             presenceChannel.unsubscribe();
+            userChannel.unsubscribe();
+            window.removeEventListener('beforeunload', () => {});
         };
     }, [auth.user.id]);
+
+    // Format last active time
+    const formatLastActive = (timestamp) => {
+        if (!timestamp) return 'Offline';
+
+        try {
+            const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            const lastActive = DateTime.fromISO(timestamp).setZone(timezone);
+            const now = DateTime.now().setZone(timezone);
+            const diff = now.diff(lastActive, ['minutes', 'hours', 'days']).toObject();
+
+            if (diff.minutes < 1) {
+                return 'Just now';
+            } else if (diff.minutes < 60) {
+                return `${Math.floor(diff.minutes)}m ago`;
+            } else if (diff.hours < 24) {
+                return `${Math.floor(diff.hours)}h ago`;
+            } else if (diff.days < 7) {
+                return `${Math.floor(diff.days)}d ago`;
+            } else {
+                return lastActive.toFormat('MMM d, h:mm a');
+            }
+        } catch (error) {
+            console.error('Error formatting last active time:', error);
+            return 'Unknown';
+        }
+    };
 
     // Subscribe to all messages
     useEffect(() => {
@@ -196,10 +301,10 @@ export default function Chat({ users: initialUsers, auth }) {
     // Fetch initial users and subscribe to changes
     useEffect(() => {
         const fetchAndSubscribeToUsers = async () => {
-            // Fetch initial users
+            // Fetch initial users with last_active_at
             const { data: initialUsers, error } = await supabase
                 .from('users')
-                .select('id, name, email')
+                .select('id, name, email, last_active_at')
                 .neq('id', auth.user.id);
 
             if (error) {
@@ -221,7 +326,6 @@ export default function Chat({ users: initialUsers, auth }) {
                     },
                     async (payload) => {
                         if (payload.eventType === 'INSERT') {
-                            // Add new user to the list and increment new user count
                             setUsers(prev => {
                                 const newUser = payload.new;
                                 if (!prev.find(user => user.id === newUser.id)) {
@@ -231,14 +335,19 @@ export default function Chat({ users: initialUsers, auth }) {
                                 return prev;
                             });
                         } else if (payload.eventType === 'UPDATE') {
-                            // Update existing user
                             setUsers(prev =>
                                 prev.map(user =>
                                     user.id === payload.new.id ? payload.new : user
                                 )
                             );
+                            // Update last active time
+                            if (payload.new.last_active_at) {
+                                setLastActive(prev => ({
+                                    ...prev,
+                                    [payload.new.id]: payload.new.last_active_at
+                                }));
+                            }
                         } else if (payload.eventType === 'DELETE') {
-                            // Remove deleted user
                             setUsers(prev =>
                                 prev.filter(user => user.id !== payload.old.id)
                             );
@@ -526,7 +635,7 @@ export default function Chat({ users: initialUsers, auth }) {
                                     <div className="flex items-center justify-between">
                                         <span className="font-semibold text-[#1c1e21] truncate">{user.name}</span>
                                         <span className="text-xs text-gray-500">
-                                            {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            {onlineUsers.has(user.id) ? 'Active' : formatLastActive(user.last_active_at)}
                                         </span>
                                     </div>
                                     <p className="text-sm text-gray-500 truncate">{user.email}</p>
@@ -572,16 +681,16 @@ export default function Chat({ users: initialUsers, auth }) {
                                 <div className="flex-1">
                                     <h3 className="font-semibold text-[#1c1e21]">{selectedUser.name}</h3>
                                     <div className="flex items-center gap-2">
-                                    {onlineUsers.has(selectedUser.id) ?
-                                        <p className="text-sm text-[#31a24c]">
-                                             Active
-                                        </p> :
-                                        <p className="text-sm text-slate-500">
-                                            Offline
-                                        </p> }
+                                        {onlineUsers.has(selectedUser.id) ? (
+                                            <p className="text-sm text-[#31a24c]">
+                                                Active
+                                            </p>
+                                        ) : (
+                                            <p className="text-sm text-slate-500">{formatLastActive(selectedUser.last_active_at)}
+                                            </p>
+                                        )}
                                         <span className="text-xs text-gray-500">•</span>
-                                        <p className="text-xs text-gray-500"> {userTimezone}
-                                        </p>
+                                        <p className="text-xs text-gray-500"> {userTimezone}</p>
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
