@@ -404,6 +404,7 @@ export default function Chat({ users: initialUsers, auth }) {
                 transform transition-transform duration-300 ease-in-out z-10
                 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
                 shadow-xl md:shadow-none border-r border-gray-200
+                flex flex-col
             `}>
                 {/* User List Header */}
                 <div className="p-4 border-b border-gray-200 bg-white sticky top-0 z-10">
@@ -434,6 +435,11 @@ export default function Chat({ users: initialUsers, auth }) {
                 <div
                     ref={usersListRef}
                     className="flex-1 overflow-y-auto scrollbar-hide"
+                    style={{
+                        scrollbarWidth: 'none',
+                        msOverflowStyle: 'none',
+                        height: 'calc(100vh - 8rem)'
+                    }}
                 >
                     {filteredUsers.map(user => (
                         <button
