@@ -146,8 +146,10 @@ export default function Chat({ users: initialUsers, auth }) {
             try {
                 const { data: users, error } = await supabase
                     .from('users')
-                    .select('id, last_active_at')
+                    .select('id, profile_photo, last_active_at')
                     .neq('id', auth.user.id);
+
+                console.log('users PRO', users)
 
                 if (error) {
                     console.error('Error fetching last active times:', error);
@@ -249,6 +251,7 @@ export default function Chat({ users: initialUsers, auth }) {
                                     sender:sender_id (
                                         id,
                                         name,
+                                        profile_photo,
                                         email
                                     )
                                 `)
@@ -304,7 +307,7 @@ export default function Chat({ users: initialUsers, auth }) {
             // Fetch initial users with last_active_at
             const { data: initialUsers, error } = await supabase
                 .from('users')
-                .select('id, name, email, last_active_at')
+                .select('id, name, email, profile_photo, last_active_at')
                 .neq('id', auth.user.id);
 
             if (error) {
@@ -377,6 +380,7 @@ export default function Chat({ users: initialUsers, auth }) {
                     sender:sender_id (
                         id,
                         name,
+                        profile_photo,
                         email
                     )
                 `)
@@ -527,7 +531,7 @@ export default function Chat({ users: initialUsers, auth }) {
         return (
             <div className="relative">
                 <img
-                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=7C3AED&color=fff`}
+                    src={user.profile_photo ? user.profile_photo :`https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=7C3AED&color=fff`}
                     alt={user.name || 'User'}
                     className="w-8 h-8 rounded-full"
                 />

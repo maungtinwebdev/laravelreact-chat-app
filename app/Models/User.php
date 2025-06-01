@@ -22,9 +22,9 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'last_active_at',
-        'last_seen_at',
         'profile_photo',
+        'last_seen_at',
+        'last_active_at',
         'is_admin',
         'status',
         'banned_at',
@@ -83,5 +83,13 @@ class User extends Authenticatable
     {
         return $this->hasMany(Message::class, 'sender_id')
             ->orWhere('receiver_id', $this->id);
+    }
+
+    public function getProfilePhotoUrlAttribute()
+    {
+        if ($this->profile_photo) {
+            return $this->profile_photo;
+        }
+        return null;
     }
 }

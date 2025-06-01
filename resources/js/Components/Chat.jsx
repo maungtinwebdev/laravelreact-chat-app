@@ -254,6 +254,10 @@ export default function Chat({ auth }) {
         );
     };
 
+    const handleUserSelect = (user) => {
+        setSelectedUser(user);
+    };
+
     return (
         <AuthenticatedLayout
             user={auth.user}
@@ -270,32 +274,45 @@ export default function Chat({ auth }) {
                                 <ScrollArea className="h-full">
                                     <div className="p-4">
                                         <h3 className="font-semibold mb-4">Conversations</h3>
-                                        {conversations.map((conv) => (
+                                        {users.map((user) => (
                                             <div
-                                                key={conv.id}
-                                                className={`flex items-center p-3 rounded-lg cursor-pointer mb-2 hover:bg-gray-100 ${
-                                                    selectedUser?.id === conv.other_user.id ? 'bg-gray-100' : ''
+                                                key={user.id}
+                                                className={`p-4 border-b cursor-pointer hover:bg-gray-50 ${
+                                                    selectedUser?.id === user.id ? 'bg-gray-100' : ''
                                                 }`}
-                                                onClick={() => setSelectedUser(conv.other_user)}
+                                                onClick={() => handleUserSelect(user)}
                                             >
-                                                <Avatar className="h-10 w-10 mr-3">
-                                                    <AvatarFallback>
-                                                        {conv.other_user.name.charAt(0)}
-                                                    </AvatarFallback>
-                                                </Avatar>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-medium truncate">
-                                                        {conv.other_user.name}
-                                                    </p>
-                                                    <p className="text-xs text-gray-500 truncate">
-                                                        {conv.content}
-                                                    </p>
+                                                <div className="flex items-center space-x-3">
+                                                    <div className="relative">
+                                                        {user.profile_photo ? (
+                                                            <img
+                                                                src={user.profile_photo}
+                                                                alt={user.name}
+                                                                className="w-12 h-12 rounded-full object-cover"
+                                                            />
+                                                        ) : (
+                                                            <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center">
+                                                                <span className="text-gray-500 text-lg">
+                                                                    {user.name.charAt(0).toUpperCase()}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                        {isUserOnline(user) && (
+                                                            <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></span>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <div className="flex justify-between items-center">
+                                                            <h3 className="font-medium">{user.name}</h3>
+                                                            <span className="text-sm text-gray-500">
+                                                                {formatLastSeen(user.last_seen_at)}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-sm text-gray-500 truncate">
+                                                            {user.email}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                                {conv.unread_count > 0 && (
-                                                    <Badge variant="destructive" className="ml-2">
-                                                        {conv.unread_count}
-                                                    </Badge>
-                                                )}
                                             </div>
                                         ))}
                                     </div>
