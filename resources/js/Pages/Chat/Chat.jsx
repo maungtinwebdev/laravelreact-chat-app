@@ -188,7 +188,7 @@ export default function Chat({ users: initialUsers, auth }) {
         // Update last active time when user leaves
         window.addEventListener('beforeunload', async () => {
             await updateLastActiveTime(auth.user.id);
-        });
+            });
 
         return () => {
             presenceChannel.unsubscribe();
@@ -682,12 +682,12 @@ export default function Chat({ users: initialUsers, auth }) {
                                     <h3 className="font-semibold text-[#1c1e21]">{selectedUser.name}</h3>
                                     <div className="flex items-center gap-2">
                                         {onlineUsers.has(selectedUser.id) ? (
-                                            <p className="text-sm text-[#31a24c]">
+                                    <p className="text-sm text-[#31a24c]">
                                                 Active
                                             </p>
                                         ) : (
                                             <p className="text-sm text-slate-500">{formatLastActive(selectedUser.last_active_at)}
-                                            </p>
+                                    </p>
                                         )}
                                         <span className="text-xs text-gray-500">•</span>
                                         <p className="text-xs text-gray-500"> {userTimezone}</p>
@@ -735,32 +735,32 @@ export default function Chat({ users: initialUsers, auth }) {
                                             </div>
                                         )}
                                         <div
-                                            className={`flex ${
-                                                msg.sender_id === auth.user.id ? 'justify-end' : 'justify-start'
+                                    className={`flex ${
+                                        msg.sender_id === auth.user.id ? 'justify-end' : 'justify-start'
+                                    }`}
+                                >
+                                    <div
+                                        className={`flex max-w-[85%] md:max-w-[70%] ${
+                                            msg.sender_id === auth.user.id
+                                                ? 'flex-row-reverse'
+                                                : 'flex-row'
+                                        } items-end gap-2`}
+                                    >
+                                        {renderUserAvatar(msg.sender)}
+                                        <div
+                                            className={`rounded-2xl px-4 py-2 ${
+                                                msg.sender_id === auth.user.id
+                                                    ? 'bg-[#0084ff] text-white'
+                                                    : 'bg-white text-[#1c1e21] shadow-sm'
                                             }`}
                                         >
-                                            <div
-                                                className={`flex max-w-[85%] md:max-w-[70%] ${
-                                                    msg.sender_id === auth.user.id
-                                                        ? 'flex-row-reverse'
-                                                        : 'flex-row'
-                                                } items-end gap-2`}
-                                            >
-                                                {renderUserAvatar(msg.sender)}
-                                                <div
-                                                    className={`rounded-2xl px-4 py-2 ${
-                                                        msg.sender_id === auth.user.id
-                                                            ? 'bg-[#0084ff] text-white'
-                                                            : 'bg-white text-[#1c1e21] shadow-sm'
-                                                    }`}
-                                                >
-                                                    {msg.image_url && (
+                                            {msg.image_url && (
                                                         <div className="mb-2 relative group">
-                                                            <img
-                                                                src={msg.image_url}
-                                                                alt="Shared image"
+                                                    <img
+                                                        src={msg.image_url}
+                                                        alt="Shared image"
                                                                 className="max-w-full rounded-lg cursor-pointer"
-                                                                style={{ maxHeight: '300px' }}
+                                                        style={{ maxHeight: '300px' }}
                                                                 onClick={() => {
                                                                     if (window.innerWidth <= 768) {
                                                                         downloadImage(msg.image_url);
@@ -785,18 +785,18 @@ export default function Chat({ users: initialUsers, auth }) {
                                                                     Tap to save
                                                                 </div>
                                                             )}
-                                                        </div>
-                                                    )}
-                                                    {msg.content && <p className="break-words">{msg.content}</p>}
-                                                    <span
-                                                        className={`text-xs ${
-                                                            msg.sender_id === auth.user.id
-                                                                ? 'text-[#e4e6eb]'
-                                                                : 'text-gray-500'
-                                                        }`}
-                                                    >
+                                                </div>
+                                            )}
+                                            {msg.content && <p className="break-words">{msg.content}</p>}
+                                            <span
+                                                className={`text-xs ${
+                                                    msg.sender_id === auth.user.id
+                                                        ? 'text-[#e4e6eb]'
+                                                        : 'text-gray-500'
+                                                }`}
+                                            >
                                                         {formatMessageTime(msg.created_at)}
-                                                    </span>
+                                            </span>
                                                 </div>
                                             </div>
                                         </div>
