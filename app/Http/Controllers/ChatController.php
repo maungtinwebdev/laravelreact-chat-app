@@ -24,8 +24,18 @@ class ChatController extends Controller
     public function getUsers()
     {
         $users = User::where('id', '!=', Auth::id())
-            ->select('id', 'name', 'email', 'last_seen_at')
-            ->get();
+            ->select('id', 'name', 'email', 'last_seen_at', 'profile_photo')
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'last_seen_at' => $user->last_seen_at,
+                    'profile_photo' => $user->profile_photo,
+                    'is_online' => $user->last_seen_at && now()->diffInSeconds($user->last_seen_at) < 30
+                ];
+            });
 
         return response()->json($users);
     }

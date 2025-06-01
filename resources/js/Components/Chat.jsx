@@ -194,22 +194,22 @@ export default function Chat({ auth }) {
         if (!user.last_seen_at) return false;
         const lastSeen = new Date(user.last_seen_at);
         const now = new Date();
-        const diffInMinutes = (now - lastSeen) / (1000 * 60);
-        return diffInMinutes < 5;
+        const diffInSeconds = (now - lastSeen) / 1000;
+        return diffInSeconds < 30; // Consider user online if last seen within 30 seconds
     };
 
     const formatLastSeen = (lastSeenAt) => {
         if (!lastSeenAt) return 'Offline';
         const lastSeen = new Date(lastSeenAt);
         const now = new Date();
-        const diffInMinutes = (now - lastSeen) / (1000 * 60);
+        const diffInSeconds = (now - lastSeen) / 1000;
 
-        if (diffInMinutes < 1) return 'Active now';
-        if (diffInMinutes < 2) return 'Active 1 minute ago';
-        if (diffInMinutes < 60) return `Active ${Math.floor(diffInMinutes)} minutes ago`;
-        if (diffInMinutes < 120) return 'Active 1 hour ago';
-        if (diffInMinutes < 1440) return `Active ${Math.floor(diffInMinutes / 60)} hours ago`;
-        if (diffInMinutes < 2880) return 'Active yesterday';
+        if (diffInSeconds < 30) return 'Active now';
+        if (diffInSeconds < 60) return 'Active 1 minute ago';
+        if (diffInSeconds < 3600) return `Active ${Math.floor(diffInSeconds / 60)} minutes ago`;
+        if (diffInSeconds < 7200) return 'Active 1 hour ago';
+        if (diffInSeconds < 86400) return `Active ${Math.floor(diffInSeconds / 3600)} hours ago`;
+        if (diffInSeconds < 172800) return 'Active yesterday';
         return `Active on ${lastSeen.toLocaleDateString()}`;
     };
 
