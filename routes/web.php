@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\DayController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -52,6 +53,12 @@ Route::middleware(['web', 'auth', 'verified'])->group(function () {
         Route::post('/messages/{id}/read', [MessageController::class, 'markAsRead']);
         Route::get('/messages/unread-count', [MessageController::class, 'getUnreadCount']);
     });
+
+    // My Day routes
+    Route::get('/my-day', [DayController::class, 'index'])->name('my-day');
+    Route::get('/days', [DayController::class, 'index'])->name('days.index');
+    Route::post('/days', [DayController::class, 'store'])->name('days.store');
+    Route::delete('/days/{day}', [DayController::class, 'destroy'])->name('days.destroy');
 });
 
 // Admin routes
