@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Message extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -19,8 +20,9 @@ class Message extends Model
         'content',
         'sender_id',
         'receiver_id',
-        'read_at',
-        'status',
+        'is_read',
+        'image_url',
+        'image_path'
     ];
 
     /**
@@ -29,7 +31,7 @@ class Message extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'read_at' => 'datetime',
+        'is_read' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

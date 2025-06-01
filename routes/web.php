@@ -22,12 +22,13 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // Chat API routes
-    // Route::prefix('chat')->group(function () {
-    //     Route::get('/', [MessageController::class, 'index']);
-    //     // Route::post('/messages', [MessageController::class, 'store']);
-    //     // Route::post('/messages/{id}/read', [MessageController::class, 'markAsRead']);
-    //     Route::get('/messages/unread-count', [MessageController::class, 'getUnreadCount']);
-    // });
+    Route::prefix('chat')->group(function () {
+        Route::get('/messages', [MessageController::class, 'index']);
+        Route::post('/messages', [MessageController::class, 'store']);
+        Route::delete('/messages/{message}', [MessageController::class, 'destroy']);
+        Route::post('/messages/{id}/read', [MessageController::class, 'markAsRead']);
+        Route::get('/messages/unread-count', [MessageController::class, 'getUnreadCount']);
+    });
 });
 
 Route::get('/', function () {
@@ -40,7 +41,7 @@ Route::get('/', function () {
 });
 
 Route::middleware(['auth'])->group(function () {
-    Route::get('/dashboard', function () {
+Route::get('/dashboard', function () {
         return Inertia::render('Dashboard', [
             'auth' => [
                 'user' => auth()->user()
@@ -92,6 +93,15 @@ Route::middleware(['auth'])->group(function () {
     // Profile routes
     Route::post('/api/profile/update', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // Chat routes
+    Route::prefix('chat')->group(function () {
+        Route::get('/messages', [MessageController::class, 'index']);
+        Route::post('/messages', [MessageController::class, 'store']);
+        Route::delete('/messages/{message}', [MessageController::class, 'destroy']);
+        Route::post('/messages/{id}/read', [MessageController::class, 'markAsRead']);
+        Route::get('/messages/unread-count', [MessageController::class, 'getUnreadCount']);
+    });
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {

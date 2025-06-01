@@ -40,11 +40,23 @@ class MessageController extends Controller
             'content' => $request->content,
             'sender_id' => Auth::id(),
             'receiver_id' => $request->receiver_id,
+            'is_read' => false
         ]);
 
         return response()->json([
             'message' => $message->load(['sender', 'receiver']),
         ]);
+    }
+
+    public function destroy(Message $message)
+    {
+        // Check if the authenticated user is the sender of the message
+        if ($message->sender_id !== Auth::id()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $message->delete(); // This will perform a soft delete
+        return response()->json(['message' => 'Message deleted successfully']);
     }
 
     public function markAsRead($id)
