@@ -6,11 +6,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -57,5 +58,30 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->is_admin;
+    }
+
+    /**
+     * Get the messages sent by the user.
+     */
+    public function sentMessages()
+    {
+        return $this->hasMany(Message::class, 'sender_id');
+    }
+
+    /**
+     * Get the messages received by the user.
+     */
+    public function receivedMessages()
+    {
+        return $this->hasMany(Message::class, 'receiver_id');
+    }
+
+    /**
+     * Get all messages for the user (both sent and received).
+     */
+    public function messages()
+    {
+        return $this->hasMany(Message::class, 'sender_id')
+            ->orWhere('receiver_id', $this->id);
     }
 }

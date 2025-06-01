@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\MessageController;
+use App\Http\Controllers\UserController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -40,73 +41,25 @@ Route::get('/', function () {
     ]);
 });
 
-Route::middleware(['auth'])->group(function () {
-Route::get('/dashboard', function () {
-        return Inertia::render('Dashboard', [
-            'auth' => [
-                'user' => auth()->user()
-            ]
-        ]);
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/dashboard', function () {
+        return Inertia::render('Dashboard');
     })->name('dashboard');
 
-    Route::get('/chat', function () {
-        return Inertia::render('Chat/Chat', [
-            'users' => \App\Models\User::where('id', '!=', auth()->id())->get(),
-            'auth' => [
-                'user' => auth()->user()
-            ]
-        ]);
-    })->name('chat');
-
-    Route::get('/profile', function () {
-        return Inertia::render('Profile/Profile', [
-            'auth' => [
-                'user' => auth()->user()
-            ]
-        ]);
-    })->name('profile');
-
-    Route::get('/profile/edit', function () {
-        return Inertia::render('Profile/Edit', [
-            'auth' => [
-                'user' => auth()->user()
-            ]
-        ]);
-    })->name('profile.edit');
-
-    // Admin routes
-    Route::middleware(['admin'])->group(function () {
-        Route::get('/admin/users', function () {
-            try {
-                return Inertia::render('Admin/UserManagement', [
-                    'auth' => [
-                        'user' => auth()->user()
-                    ],
-                    'users' => \App\Models\User::all()
-                ]);
-            } catch (\Exception $e) {
-                return redirect()->route('dashboard')->with('error', 'Error loading user management page.');
-            }
-        })->name('admin.users');
-    });
+    Route::get('/chat', [MessageController::class, 'index'])->name('chat.index');
 
     // Profile routes
-    Route::post('/api/profile/update', [ProfileController::class, 'update'])->name('profile.update');
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-
-    // Chat routes
-    Route::prefix('chat')->group(function () {
-        Route::get('/messages', [MessageController::class, 'index']);
-        Route::post('/messages', [MessageController::class, 'store']);
-        Route::delete('/messages/{message}', [MessageController::class, 'destroy']);
-        Route::post('/messages/{id}/read', [MessageController::class, 'markAsRead']);
-        Route::get('/messages/unread-count', [MessageController::class, 'getUnreadCount']);
-    });
 });
 
-Route::middleware(['auth', 'verified'])->group(function () {
-    // Chat page route
-    Route::get('/chat', [MessageController::class, 'index'])->name('chat.index');
+// Admin routes
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/users', [UserController::class, 'index'])->name('users.index');
+    Route::post('/users', [UserController::class, 'store'])->name('users.store');
+    Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
+    Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
 });
 
 require __DIR__.'/auth.php';
