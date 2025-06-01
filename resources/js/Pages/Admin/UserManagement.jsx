@@ -412,6 +412,7 @@ export default function UserManagement({ auth, users: initialUsers = [] }) {
                                     <TableRow>
                                         <TableHead>Name</TableHead>
                                         <TableHead>Email</TableHead>
+                                        <TableHead>Profile</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead>Admin</TableHead>
                                         <TableHead>Created At</TableHead>
@@ -423,6 +424,28 @@ export default function UserManagement({ auth, users: initialUsers = [] }) {
                                         <TableRow key={user.id}>
                                             <TableCell>{user.name}</TableCell>
                                             <TableCell>{user.email}</TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center">
+                                                    {user.profile_photo ? (
+                                                        <div className="flex flex-col items-center">
+                                                            <img
+                                                                src={user.profile_photo}
+                                                                alt={`${user.name}'s profile`}
+                                                                className="w-10 h-10 rounded-full object-cover border border-gray-200"
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex flex-col items-center">
+                                                            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center border border-gray-300">
+                                                                <User className="w-5 h-5 text-gray-500" />
+                                                            </div>
+                                                            <span className="text-xs text-gray-500 mt-1">
+                                                                No photo
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </TableCell>
                                             <TableCell>{getStatusBadge(user.status || 'active')}</TableCell>
                                             <TableCell>
                                                 <div className="flex items-center space-x-2">

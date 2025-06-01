@@ -132,3 +132,4 @@ export default function Navigation({ auth }) {
         </div>
     );
 }
+ 
