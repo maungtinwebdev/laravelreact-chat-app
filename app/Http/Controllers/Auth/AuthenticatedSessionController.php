@@ -31,8 +31,8 @@ class AuthenticatedSessionController extends Controller
     public function store(LoginRequest $request): RedirectResponse
     {
         try {
-            $request->authenticate();
-            $request->session()->regenerate();
+        $request->authenticate();
+        $request->session()->regenerate();
 
             return redirect()->intended(RouteServiceProvider::HOME);
         } catch (\Exception $e) {
@@ -49,11 +49,11 @@ class AuthenticatedSessionController extends Controller
     public function destroy(Request $request): RedirectResponse
     {
         try {
-            Auth::guard('web')->logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
-            return redirect('/');
+        return redirect('/');
         } catch (\Exception $e) {
             \Log::error('Logout error: ' . $e->getMessage());
             return redirect('/');
