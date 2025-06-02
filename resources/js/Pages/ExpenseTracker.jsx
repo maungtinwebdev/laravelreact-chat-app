@@ -3,6 +3,32 @@ import { supabase } from '../supabaseClient';
 import { Plus, Minus, DollarSign, Calendar, Filter, Search, BarChart2, PieChart, Download, Upload, Trash2, Edit2, MoreVertical, Menu, Tag } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { v4 as uuidv4 } from 'uuid';
+import {
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    BarElement,
+    ArcElement,
+    Title,
+    Tooltip,
+    Legend,
+} from 'chart.js';
+import { Line, Bar, Pie } from 'react-chartjs-2';
+
+// Register ChartJS components
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    BarElement,
+    ArcElement,
+    Title,
+    Tooltip,
+    Legend
+);
 
 export default function ExpenseTracker({ auth }) {
     const [expenses, setExpenses] = useState([]);
@@ -37,46 +63,32 @@ export default function ExpenseTracker({ auth }) {
         name: '',
         description: ''
     });
+    const [chartData, setChartData] = useState({
+        categoryData: null,
+        trendData: null
+    });
 
-    // Add refreshData function
-    const refreshData = async () => {
-        try {
-            // Fetch expenses
-            const { data: expensesData, error: expensesError } = await supabase
-                .from('expenses')
-                .select('*')
-                .eq('user_id', auth.user.id)
-                .gte('date', dateRange.start)
-                .lte('date', dateRange.end)
-                .order('date', { ascending: false });
+    // Add function to calculate summary
+    const calculateSummary = (expenses) => {
+        const summary = expenses.reduce((acc, expense) => {
+            if (expense.type === 'income') {
+                acc.totalIncome += parseFloat(expense.amount);
+            } else {
+                acc.totalExpense += parseFloat(expense.amount);
+            }
+            return acc;
+        }, { totalIncome: 0, totalExpense: 0 });
 
-            if (expensesError) throw expensesError;
-            setExpenses(expensesData || []);
-
-            // Calculate summary
-            const summary = expensesData?.reduce((acc, expense) => {
-                if (expense.type === 'income') {
-                    acc.totalIncome += parseFloat(expense.amount);
-                } else {
-                    acc.totalExpense += parseFloat(expense.amount);
-                }
-                return acc;
-            }, { totalIncome: 0, totalExpense: 0 });
-
-            summary.balance = summary.totalIncome - summary.totalExpense;
-            setSummary(summary);
-
-        } catch (error) {
-            console.error('Error refreshing data:', error);
-        }
+        summary.balance = summary.totalIncome - summary.totalExpense;
+        return summary;
     };
 
-    // Update useEffect to handle date range changes
+    // Update useEffect to ensure categories are loaded before preparing chart data
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                // Fetch categories
+                // Fetch categories first
                 const { data: categoriesData, error: categoriesError } = await supabase
                     .from('expense_categories')
                     .select('*')
@@ -85,8 +97,24 @@ export default function ExpenseTracker({ auth }) {
                 if (categoriesError) throw categoriesError;
                 setCategories(categoriesData || []);
 
-                // Fetch expenses with date range
-                await refreshData();
+                // Then fetch expenses
+                const { data: expensesData, error: expensesError } = await supabase
+                    .from('expenses')
+                    .select('*')
+                    .eq('user_id', auth.user.id)
+                    .order('date', { ascending: false });
+
+                if (expensesError) throw expensesError;
+                setExpenses(expensesData || []);
+
+                // Calculate and set summary
+                const newSummary = calculateSummary(expensesData || []);
+                setSummary(newSummary);
+
+                // Prepare chart data after both categories and expenses are loaded
+                if (categoriesData && expensesData) {
+                    prepareChartData(expensesData);
+                }
 
             } catch (error) {
                 console.error('Error fetching data:', error);
@@ -108,8 +136,29 @@ export default function ExpenseTracker({ auth }) {
                     filter: `user_id=eq.${auth.user.id}`
                 },
                 async (payload) => {
-                    // Refresh data when changes occur
-                    await refreshData();
+                    try {
+                        // Fetch updated expenses
+                        const { data: expensesData, error: expensesError } = await supabase
+                            .from('expenses')
+                            .select('*')
+                            .eq('user_id', auth.user.id)
+                            .order('date', { ascending: false });
+
+                        if (expensesError) throw expensesError;
+
+                        // Update expenses state
+                        setExpenses(expensesData || []);
+
+                        // Update summary
+                        const newSummary = calculateSummary(expensesData || []);
+                        setSummary(newSummary);
+
+                        // Update chart data
+                        prepareChartData(expensesData || []);
+
+                    } catch (error) {
+                        console.error('Error updating data:', error);
+                    }
                 }
             )
             .subscribe();
@@ -117,14 +166,14 @@ export default function ExpenseTracker({ auth }) {
         return () => {
             subscription.unsubscribe();
         };
-    }, [auth.user.id, dateRange.start, dateRange.end]); // Add dateRange dependencies
+    }, [auth.user.id]);
 
     // Update date range handler
     const handleDateRangeChange = (field, value) => {
         setDateRange(prev => ({ ...prev, [field]: value }));
     };
 
-    // Handle form submission
+    // Update handleSubmit for real-time updates
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
@@ -165,17 +214,24 @@ export default function ExpenseTracker({ auth }) {
             setShowEditModal(false);
             setSelectedExpense(null);
 
-            // Refresh data
+            // Fetch updated data
             const { data: expensesData, error: expensesError } = await supabase
                 .from('expenses')
                 .select('*')
                 .eq('user_id', auth.user.id)
-                .gte('date', dateRange.start)
-                .lte('date', dateRange.end)
                 .order('date', { ascending: false });
 
             if (expensesError) throw expensesError;
+
+            // Update expenses state
             setExpenses(expensesData || []);
+
+            // Update summary
+            const newSummary = calculateSummary(expensesData || []);
+            setSummary(newSummary);
+
+            // Update chart data
+            prepareChartData(expensesData || []);
 
         } catch (error) {
             console.error('Error saving expense:', error);
@@ -183,7 +239,7 @@ export default function ExpenseTracker({ auth }) {
         }
     };
 
-    // Handle expense deletion
+    // Update handleDelete for real-time updates
     const handleDelete = async () => {
         if (!selectedExpense) return;
 
@@ -195,7 +251,25 @@ export default function ExpenseTracker({ auth }) {
 
             if (error) throw error;
 
-            setExpenses(prev => prev.filter(expense => expense.id !== selectedExpense.id));
+            // Fetch updated data
+            const { data: expensesData, error: expensesError } = await supabase
+                .from('expenses')
+                .select('*')
+                .eq('user_id', auth.user.id)
+                .order('date', { ascending: false });
+
+            if (expensesError) throw expensesError;
+
+            // Update expenses state
+            setExpenses(expensesData || []);
+
+            // Update summary
+            const newSummary = calculateSummary(expensesData || []);
+            setSummary(newSummary);
+
+            // Update chart data
+            prepareChartData(expensesData || []);
+
             setShowDeleteConfirm(false);
             setSelectedExpense(null);
 
@@ -245,6 +319,134 @@ export default function ExpenseTracker({ auth }) {
         } catch (error) {
             console.error('Error adding category:', error);
             alert('Failed to add category: ' + error.message);
+        }
+    };
+
+    // Update prepareChartData function to properly handle expense data
+    const prepareChartData = (expenses) => {
+        if (!expenses || expenses.length === 0) {
+            setChartData({ categoryData: null, trendData: null });
+            return;
+        }
+
+        // Prepare category data for pie chart
+        const categoryTotals = expenses.reduce((acc, expense) => {
+            if (expense.type === 'expense') {
+                const category = categories.find(c => c.id === expense.category);
+                if (category) {
+                    const categoryName = category.name;
+                    const amount = parseFloat(expense.amount);
+                    if (!isNaN(amount)) {
+                        acc[categoryName] = (acc[categoryName] || 0) + amount;
+                    }
+                }
+            }
+            return acc;
+        }, {});
+
+        // Sort categories by amount
+        const sortedCategories = Object.entries(categoryTotals)
+            .sort(([, a], [, b]) => b - a)
+            .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
+
+        const categoryData = {
+            labels: Object.keys(sortedCategories),
+            datasets: [{
+                data: Object.values(sortedCategories),
+                backgroundColor: [
+                    '#FF6384', // Food and Drink
+                    '#36A2EB', // Transportation
+                    '#FFCE56', // Housing
+                    '#4BC0C0', // Utilities
+                    '#9966FF', // Entertainment
+                    '#FF9F40', // Shopping
+                    '#8AC249', // Healthcare
+                    '#EA526F', // Education
+                    '#23B5D3', // Personal Care
+                    '#279AF1'  // Others
+                ],
+                borderWidth: 1
+            }]
+        };
+
+        // Get all unique dates from expenses
+        const allDates = [...new Set(expenses.map(e => e.date))].sort();
+
+        // Calculate daily totals for each category
+        const dailyTotals = allDates.reduce((acc, date) => {
+            const dayExpenses = expenses.filter(e => e.date === date);
+
+            // Initialize category totals for this day
+            const dayCategoryTotals = {};
+            categories.forEach(category => {
+                dayCategoryTotals[category.name] = 0;
+            });
+
+            // Calculate totals for each category
+            dayExpenses.forEach(expense => {
+                if (expense.type === 'expense') {
+                    const category = categories.find(c => c.id === expense.category);
+                    if (category) {
+                        const amount = parseFloat(expense.amount);
+                        if (!isNaN(amount)) {
+                            dayCategoryTotals[category.name] += amount;
+                        }
+                    }
+                }
+            });
+
+            // Add to accumulator
+            Object.keys(dayCategoryTotals).forEach(category => {
+                if (!acc[category]) {
+                    acc[category] = [];
+                }
+                acc[category].push(dayCategoryTotals[category]);
+            });
+
+            return acc;
+        }, {});
+
+        const trendData = {
+            labels: allDates.map(date => DateTime.fromISO(date).toFormat('MMM d')),
+            datasets: Object.entries(dailyTotals).map(([category, data], index) => ({
+                label: category,
+                data: data,
+                borderColor: categoryData.datasets[0].backgroundColor[index % categoryData.datasets[0].backgroundColor.length],
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                tension: 0.4,
+                fill: false
+            }))
+        };
+
+        setChartData({ categoryData, trendData });
+    };
+
+    // Add function to handle view mode change
+    const handleViewModeChange = async (mode) => {
+        setViewMode(mode);
+        if (mode === 'chart') {
+            try {
+                // Fetch fresh data when switching to chart view
+                const { data: expensesData, error: expensesError } = await supabase
+                    .from('expenses')
+                    .select('*')
+                    .eq('user_id', auth.user.id)
+                    .order('date', { ascending: false });
+
+                if (expensesError) throw expensesError;
+
+                // Update expenses state
+                setExpenses(expensesData || []);
+
+                // Update summary
+                const newSummary = calculateSummary(expensesData || []);
+                setSummary(newSummary);
+
+                // Prepare and update chart data
+                prepareChartData(expensesData || []);
+            } catch (error) {
+                console.error('Error fetching chart data:', error);
+            }
         }
     };
 
@@ -335,7 +537,7 @@ export default function ExpenseTracker({ auth }) {
                 <div className="p-4 border-b border-gray-200">
                     <div className="flex gap-2">
                         <button
-                            onClick={() => setViewMode('list')}
+                            onClick={() => handleViewModeChange('list')}
                             className={`flex-1 py-2 px-4 rounded-lg ${
                                 viewMode === 'list'
                                     ? 'bg-blue-500 text-white'
@@ -345,7 +547,7 @@ export default function ExpenseTracker({ auth }) {
                             <BarChart2 className="w-5 h-5 mx-auto" />
                         </button>
                         <button
-                            onClick={() => setViewMode('chart')}
+                            onClick={() => handleViewModeChange('chart')}
                             className={`flex-1 py-2 px-4 rounded-lg ${
                                 viewMode === 'chart'
                                     ? 'bg-blue-500 text-white'
@@ -454,8 +656,128 @@ export default function ExpenseTracker({ auth }) {
                             ))}
                         </div>
                     ) : (
-                        <div className="bg-white rounded-lg shadow-sm p-4">
-                            <p className="text-center text-gray-500">Chart visualization coming soon...</p>
+                        <div className="space-y-6">
+                            {/* Category Distribution */}
+                            <div className="bg-white rounded-lg shadow-sm p-6">
+                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Expense Categories Distribution</h3>
+                                <div className="h-[300px]">
+                                    {chartData.categoryData && chartData.categoryData.labels.length > 0 ? (
+                                        <Pie
+                                            data={chartData.categoryData}
+                                            options={{
+                                                responsive: true,
+                                                maintainAspectRatio: false,
+                                                plugins: {
+                                                    legend: {
+                                                        position: 'right',
+                                                        labels: {
+                                                            padding: 20,
+                                                            font: {
+                                                                size: 12
+                                                            },
+                                                            generateLabels: function(chart) {
+                                                                const data = chart.data;
+                                                                if (data.labels.length && data.datasets.length) {
+                                                                    return data.labels.map((label, i) => {
+                                                                        const value = data.datasets[0].data[i];
+                                                                        const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                                                        const percentage = ((value / total) * 100).toFixed(1);
+                                                                        return {
+                                                                            text: `${label} (${percentage}%)`,
+                                                                            fillStyle: data.datasets[0].backgroundColor[i],
+                                                                            hidden: false,
+                                                                            lineCap: 'butt',
+                                                                            lineDash: [],
+                                                                            lineDashOffset: 0,
+                                                                            lineJoin: 'miter',
+                                                                            lineWidth: 1,
+                                                                            strokeStyle: '#fff',
+                                                                            pointStyle: 'circle',
+                                                                            rotation: 0
+                                                                        };
+                                                                    });
+                                                                }
+                                                                return [];
+                                                            }
+                                                        }
+                                                    },
+                                                    tooltip: {
+                                                        callbacks: {
+                                                            label: function(context) {
+                                                                const label = context.label || '';
+                                                                const value = context.raw || 0;
+                                                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                                                const percentage = ((value / total) * 100).toFixed(1);
+                                                                return `${label}: $${value.toFixed(2)} (${percentage}%)`;
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }}
+                                        />
+                                    ) : (
+                                        <div className="flex items-center justify-center h-full">
+                                            <p className="text-gray-500">No expense data available for the selected period</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Category Trends */}
+                            <div className="bg-white rounded-lg shadow-sm p-6">
+                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Daily Expenses by Category</h3>
+                                <div className="h-[300px]">
+                                    {chartData.trendData && chartData.trendData.datasets.some(dataset => dataset.data.some(value => value > 0)) ? (
+                                        <Line
+                                            data={chartData.trendData}
+                                            options={{
+                                                responsive: true,
+                                                maintainAspectRatio: false,
+                                                plugins: {
+                                                    legend: {
+                                                        position: 'top',
+                                                        labels: {
+                                                            padding: 20,
+                                                            font: {
+                                                                size: 12
+                                                            }
+                                                        }
+                                                    },
+                                                    tooltip: {
+                                                        callbacks: {
+                                                            label: function(context) {
+                                                                const label = context.dataset.label || '';
+                                                                const value = context.raw || 0;
+                                                                return `${label}: $${value.toFixed(2)}`;
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                scales: {
+                                                    y: {
+                                                        beginAtZero: true,
+                                                        ticks: {
+                                                            callback: function(value) {
+                                                                return '$' + value;
+                                                            }
+                                                        }
+                                                    },
+                                                    x: {
+                                                        ticks: {
+                                                            maxRotation: 45,
+                                                            minRotation: 45
+                                                        }
+                                                    }
+                                                }
+                                            }}
+                                        />
+                                    ) : (
+                                        <div className="flex items-center justify-center h-full">
+                                            <p className="text-gray-500">No expense data available for the selected period</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
