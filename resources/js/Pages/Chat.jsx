@@ -22,4 +22,4 @@ export default function ChatPage({ auth }) {
             </div>
         </AuthenticatedLayout>
     );
-} 
+}

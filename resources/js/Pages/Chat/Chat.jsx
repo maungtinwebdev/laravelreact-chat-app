@@ -1,7 +1,37 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../supabaseClient';
-import { Image, Send, Paperclip, X, Loader2, Menu, ChevronLeft, Users, Search, MoreVertical, Phone, Video, Download } from 'lucide-react';
+import { Image, Send, Paperclip, X, Loader2, Menu, ChevronLeft, Users, Search, MoreVertical, Phone, Video, Download, Smile } from 'lucide-react';
 import { DateTime } from 'luxon';
+import EmojiPicker from 'emoji-picker-react';
+
+// Add Skeleton components
+const UserListSkeleton = () => (
+    <div className="animate-pulse">
+        {[...Array(5)].map((_, index) => (
+            <div key={index} className="p-3">
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
+                    <div className="flex-1">
+                        <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                </div>
+            </div>
+        ))}
+    </div>
+);
+
+const MessageSkeleton = ({ isOwnMessage }) => (
+    <div className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-4`}>
+        <div className={`flex max-w-[85%] md:max-w-[70%] ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'} items-end gap-2`}>
+            <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
+            <div className={`rounded-2xl px-4 py-2 ${isOwnMessage ? 'bg-gray-200' : 'bg-gray-100'}`}>
+                <div className="h-4 bg-gray-300 rounded w-32 mb-2"></div>
+                <div className="h-3 bg-gray-300 rounded w-16"></div>
+            </div>
+        </div>
+    </div>
+);
 
 export default function Chat({ users: initialUsers, auth }) {
     const [message, setMessage] = useState('');
@@ -25,6 +55,10 @@ export default function Chat({ users: initialUsers, auth }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [userTimezone, setUserTimezone] = useState('');
     const [downloadingImage, setDownloadingImage] = useState(false);
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const emojiPickerRef = useRef(null);
+    const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+    const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
     // Get user's timezone on component mount
     useEffect(() => {
@@ -304,64 +338,70 @@ export default function Chat({ users: initialUsers, auth }) {
     // Fetch initial users and subscribe to changes
     useEffect(() => {
         const fetchAndSubscribeToUsers = async () => {
-            // Fetch initial users with last_active_at
-            const { data: initialUsers, error } = await supabase
-                .from('users')
-                .select('id, name, email, profile_photo, last_active_at')
-                .neq('id', auth.user.id);
+            setIsLoadingUsers(true);
+            try {
+                const { data: initialUsers, error } = await supabase
+                    .from('users')
+                    .select('id, name, email, profile_photo, last_active_at')
+                    .neq('id', auth.user.id);
 
-            if (error) {
-                console.error('Error fetching users:', error);
-                return;
-            }
+                if (error) {
+                    console.error('Error fetching users:', error);
+                    return;
+                }
 
-            setUsers(initialUsers || []);
+                setUsers(initialUsers || []);
 
-            // Subscribe to user changes
-            const userChannel = supabase
-                .channel('users-changes')
-                .on(
-                    'postgres_changes',
-                    {
-                        event: '*',
-                        schema: 'public',
-                        table: 'users',
-                    },
-                    async (payload) => {
-                        if (payload.eventType === 'INSERT') {
-                            setUsers(prev => {
-                                const newUser = payload.new;
-                                if (!prev.find(user => user.id === newUser.id)) {
-                                    setNewUserCount(prev => prev + 1);
-                                    return [...prev, newUser];
+                // Subscribe to user changes
+                const userChannel = supabase
+                    .channel('users-changes')
+                    .on(
+                        'postgres_changes',
+                        {
+                            event: '*',
+                            schema: 'public',
+                            table: 'users',
+                        },
+                        async (payload) => {
+                            if (payload.eventType === 'INSERT') {
+                                setUsers(prev => {
+                                    const newUser = payload.new;
+                                    if (!prev.find(user => user.id === newUser.id)) {
+                                        setNewUserCount(prev => prev + 1);
+                                        return [...prev, newUser];
+                                    }
+                                    return prev;
+                                });
+                            } else if (payload.eventType === 'UPDATE') {
+                                setUsers(prev =>
+                                    prev.map(user =>
+                                        user.id === payload.new.id ? payload.new : user
+                                    )
+                                );
+                                // Update last active time
+                                if (payload.new.last_active_at) {
+                                    setLastActive(prev => ({
+                                        ...prev,
+                                        [payload.new.id]: payload.new.last_active_at
+                                    }));
                                 }
-                                return prev;
-                            });
-                        } else if (payload.eventType === 'UPDATE') {
-                            setUsers(prev =>
-                                prev.map(user =>
-                                    user.id === payload.new.id ? payload.new : user
-                                )
-                            );
-                            // Update last active time
-                            if (payload.new.last_active_at) {
-                                setLastActive(prev => ({
-                                    ...prev,
-                                    [payload.new.id]: payload.new.last_active_at
-                                }));
+                            } else if (payload.eventType === 'DELETE') {
+                                setUsers(prev =>
+                                    prev.filter(user => user.id !== payload.old.id)
+                                );
                             }
-                        } else if (payload.eventType === 'DELETE') {
-                            setUsers(prev =>
-                                prev.filter(user => user.id !== payload.old.id)
-                            );
                         }
-                    }
-                )
-                .subscribe();
+                    )
+                    .subscribe();
 
-            return () => {
-                supabase.removeChannel(userChannel);
-            };
+                return () => {
+                    supabase.removeChannel(userChannel);
+                };
+            } catch (error) {
+                console.error('Error in fetchAndSubscribeToUsers:', error);
+            } finally {
+                setIsLoadingUsers(false);
+            }
         };
 
         fetchAndSubscribeToUsers();
@@ -372,41 +412,47 @@ export default function Chat({ users: initialUsers, auth }) {
         if (!selectedUser) return;
 
         const fetchMessages = async () => {
-            // Fetch messages between the current user and selected user
-            const { data, error } = await supabase
-                .from('messages')
-                .select(`
-                    *,
-                    sender:sender_id (
-                        id,
-                        name,
-                        profile_photo,
-                        email
-                    )
-                `)
-                .or(`and(sender_id.eq.${auth.user.id},receiver_id.eq.${selectedUser.id}),and(sender_id.eq.${selectedUser.id},receiver_id.eq.${auth.user.id})`)
-                .order('created_at', { ascending: true });
+            setIsLoadingMessages(true);
+            try {
+                const { data, error } = await supabase
+                    .from('messages')
+                    .select(`
+                        *,
+                        sender:sender_id (
+                            id,
+                            name,
+                            profile_photo,
+                            email
+                        )
+                    `)
+                    .or(`and(sender_id.eq.${auth.user.id},receiver_id.eq.${selectedUser.id}),and(sender_id.eq.${selectedUser.id},receiver_id.eq.${auth.user.id})`)
+                    .order('created_at', { ascending: true });
 
-            if (error) {
-                console.error('Error fetching messages:', error);
-                return;
-            }
+                if (error) {
+                    console.error('Error fetching messages:', error);
+                    return;
+                }
 
-            setMessages(data || []);
-            scrollToBottom();
+                setMessages(data || []);
+                scrollToBottom();
 
-            // Clear unread messages for selected user
-            setUnreadMessages(prev => ({
-                ...prev,
-                [selectedUser.id]: 0
-            }));
-
-            // Update last message ID
-            if (data && data.length > 0) {
-                setLastMessageIds(prev => ({
+                // Clear unread messages for selected user
+                setUnreadMessages(prev => ({
                     ...prev,
-                    [selectedUser.id]: data[data.length - 1].id
+                    [selectedUser.id]: 0
                 }));
+
+                // Update last message ID
+                if (data && data.length > 0) {
+                    setLastMessageIds(prev => ({
+                        ...prev,
+                        [selectedUser.id]: data[data.length - 1].id
+                    }));
+                }
+            } catch (error) {
+                console.error('Error in fetchMessages:', error);
+            } finally {
+                setIsLoadingMessages(false);
             }
         };
 
@@ -564,6 +610,26 @@ export default function Chat({ users: initialUsers, auth }) {
         }
     };
 
+    // Add this new function to handle emoji selection
+    const onEmojiClick = (emojiObject) => {
+        setMessage(prev => prev + emojiObject.emoji);
+        setShowEmojiPicker(false);
+    };
+
+    // Add click outside handler for emoji picker
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
+                setShowEmojiPicker(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
     return (
         <div className="flex h-[calc(100vh-4rem)] relative bg-[#f0f2f5]">
             {/* Mobile Menu Button */}
@@ -617,41 +683,45 @@ export default function Chat({ users: initialUsers, auth }) {
                         height: 'calc(100vh - 8rem)'
                     }}
                 >
-                    {filteredUsers.map(user => (
-                        <button
-                            key={user.id}
-                            onClick={() => {
-                                setSelectedUser(user);
-                                setNewUserCount(0);
-                                setIsMobileMenuOpen(false);
-                            }}
-                            className={`w-full text-left p-3 hover:bg-[#f0f2f5] transition-all duration-200 relative
-                                ${selectedUser?.id === user.id ? 'bg-[#e4e6eb]' : ''}`}
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className="relative">
-                                    {renderUserAvatar(user)}
-                                    {onlineUsers.has(user.id) && (
-                                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#31a24c] border-2 border-white rounded-full"></span>
+                    {isLoadingUsers ? (
+                        <UserListSkeleton />
+                    ) : (
+                        filteredUsers.map(user => (
+                            <button
+                                key={user.id}
+                                onClick={() => {
+                                    setSelectedUser(user);
+                                    setNewUserCount(0);
+                                    setIsMobileMenuOpen(false);
+                                }}
+                                className={`w-full text-left p-3 hover:bg-[#f0f2f5] transition-all duration-200 relative
+                                    ${selectedUser?.id === user.id ? 'bg-[#e4e6eb]' : ''}`}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="relative">
+                                        {renderUserAvatar(user)}
+                                        {onlineUsers.has(user.id) && (
+                                            <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#31a24c] border-2 border-white rounded-full"></span>
+                                        )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-semibold text-[#1c1e21] truncate">{user.name}</span>
+                                            <span className="text-xs text-gray-500">
+                                                {onlineUsers.has(user.id) ? 'Active' : formatLastActive(user.last_active_at)}
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-gray-500 truncate">{user.email}</p>
+                                    </div>
+                                    {unreadMessages[user.id] > 0 && (
+                                        <span className="bg-[#0084ff] text-white text-xs font-medium px-2 py-1 rounded-full min-w-[20px] text-center">
+                                            {unreadMessages[user.id]}
+                                        </span>
                                     )}
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center justify-between">
-                                        <span className="font-semibold text-[#1c1e21] truncate">{user.name}</span>
-                                        <span className="text-xs text-gray-500">
-                                            {onlineUsers.has(user.id) ? 'Active' : formatLastActive(user.last_active_at)}
-                                        </span>
-                                    </div>
-                                    <p className="text-sm text-gray-500 truncate">{user.email}</p>
-                                </div>
-                                {unreadMessages[user.id] > 0 && (
-                                    <span className="bg-[#0084ff] text-white text-xs font-medium px-2 py-1 rounded-full min-w-[20px] text-center">
-                                        {unreadMessages[user.id]}
-                                    </span>
-                                )}
-                            </div>
-                        </button>
-                    ))}
+                            </button>
+                        ))
+                    )}
                 </div>
             </div>
 
@@ -719,94 +789,103 @@ export default function Chat({ users: initialUsers, auth }) {
                                 msOverflowStyle: 'none',
                             }}
                         >
-                            {messages.map((msg, index) => {
-                                const showDateHeader = index === 0 ||
-                                    !DateTime.fromISO(msg.created_at)
-                                        .setZone('Asia/Yangon')
-                                        .hasSame(
-                                            DateTime.fromISO(messages[index - 1].created_at)
-                                                .setZone('Asia/Yangon'),
-                                            'day'
-                                        );
+                            {isLoadingMessages ? (
+                                <>
+                                    <MessageSkeleton isOwnMessage={false} />
+                                    <MessageSkeleton isOwnMessage={true} />
+                                    <MessageSkeleton isOwnMessage={false} />
+                                    <MessageSkeleton isOwnMessage={true} />
+                                </>
+                            ) : (
+                                messages.map((msg, index) => {
+                                    const showDateHeader = index === 0 ||
+                                        !DateTime.fromISO(msg.created_at)
+                                            .setZone('Asia/Yangon')
+                                            .hasSame(
+                                                DateTime.fromISO(messages[index - 1].created_at)
+                                                    .setZone('Asia/Yangon'),
+                                                'day'
+                                            );
 
-                                return (
-                                    <div key={msg.id}>
-                                        {showDateHeader && (
-                                            <div className="flex justify-center my-4">
-                                                <div className="bg-white px-4 py-1 rounded-full text-sm text-gray-500 shadow-sm">
-                                                    {getMessageDateHeader(msg.created_at)}
-                                                </div>
-                                            </div>
-                                        )}
-                                        <div
-                                    className={`flex ${
-                                        msg.sender_id === auth.user.id ? 'justify-end' : 'justify-start'
-                                    }`}
-                                >
-                                    <div
-                                        className={`flex max-w-[85%] md:max-w-[70%] ${
-                                            msg.sender_id === auth.user.id
-                                                ? 'flex-row-reverse'
-                                                : 'flex-row'
-                                        } items-end gap-2`}
-                                    >
-                                        {renderUserAvatar(msg.sender)}
-                                        <div
-                                            className={`rounded-2xl px-4 py-2 ${
-                                                msg.sender_id === auth.user.id
-                                                    ? 'bg-[#0084ff] text-white'
-                                                    : 'bg-white text-[#1c1e21] shadow-sm'
-                                            }`}
-                                        >
-                                            {msg.image_url && (
-                                                        <div className="mb-2 relative group">
-                                                    <img
-                                                        src={msg.image_url}
-                                                        alt="Shared image"
-                                                                className="max-w-full rounded-lg cursor-pointer"
-                                                        style={{ maxHeight: '300px' }}
-                                                                onClick={() => {
-                                                                    if (window.innerWidth <= 768) {
-                                                                        downloadImage(msg.image_url);
-                                                                    }
-                                                                }}
-                                                            />
-                                                            <button
-                                                                onClick={() => downloadImage(msg.image_url)}
-                                                                className="absolute top-2 right-2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white p-2 rounded-full
-                                                                    md:opacity-0 md:group-hover:opacity-100
-                                                                    opacity-100 transition-opacity duration-200"
-                                                                title="Download image"
-                                                            >
-                                                                {downloadingImage ? (
-                                                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                                                ) : (
-                                                                    <Download className="w-4 h-4" />
-                                                                )}
-                                                            </button>
-                                                            {window.innerWidth <= 768 && (
-                                                                <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded-full">
-                                                                    Tap to save
-                                                                </div>
-                                                            )}
+                                    return (
+                                        <div key={msg.id}>
+                                            {showDateHeader && (
+                                                <div className="flex justify-center my-4">
+                                                    <div className="bg-white px-4 py-1 rounded-full text-sm text-gray-500 shadow-sm">
+                                                        {getMessageDateHeader(msg.created_at)}
+                                                    </div>
                                                 </div>
                                             )}
-                                            {msg.content && <p className="break-words">{msg.content}</p>}
-                                            <span
-                                                className={`text-xs ${
+                                            <div
+                                        className={`flex ${
+                                            msg.sender_id === auth.user.id ? 'justify-end' : 'justify-start'
+                                        }`}
+                                    >
+                                        <div
+                                            className={`flex max-w-[85%] md:max-w-[70%] ${
+                                                msg.sender_id === auth.user.id
+                                                    ? 'flex-row-reverse'
+                                                    : 'flex-row'
+                                            } items-end gap-2`}
+                                        >
+                                            {renderUserAvatar(msg.sender)}
+                                            <div
+                                                className={`rounded-2xl px-4 py-2 ${
                                                     msg.sender_id === auth.user.id
-                                                        ? 'text-[#e4e6eb]'
-                                                        : 'text-gray-500'
+                                                        ? 'bg-[#0084ff] text-white'
+                                                        : 'bg-white text-[#1c1e21] shadow-sm'
                                                 }`}
                                             >
-                                                        {formatMessageTime(msg.created_at)}
-                                            </span>
+                                                {msg.image_url && (
+                                                            <div className="mb-2 relative group">
+                                                        <img
+                                                            src={msg.image_url}
+                                                            alt="Shared image"
+                                                                    className="max-w-full rounded-lg cursor-pointer"
+                                                            style={{ maxHeight: '300px' }}
+                                                                    onClick={() => {
+                                                                        if (window.innerWidth <= 768) {
+                                                                            downloadImage(msg.image_url);
+                                                                        }
+                                                                    }}
+                                                                />
+                                                                <button
+                                                                    onClick={() => downloadImage(msg.image_url)}
+                                                                    className="absolute top-2 right-2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white p-2 rounded-full
+                                                                        md:opacity-0 md:group-hover:opacity-100
+                                                                        opacity-100 transition-opacity duration-200"
+                                                                    title="Download image"
+                                                                >
+                                                                    {downloadingImage ? (
+                                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                                    ) : (
+                                                                        <Download className="w-4 h-4" />
+                                                                    )}
+                                                                </button>
+                                                                {window.innerWidth <= 768 && (
+                                                                    <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded-full">
+                                                                        Tap to save
+                                                                    </div>
+                                                                )}
+                                                    </div>
+                                                )}
+                                                {msg.content && <p className="break-words">{msg.content}</p>}
+                                                <span
+                                                    className={`text-xs ${
+                                                        msg.sender_id === auth.user.id
+                                                            ? 'text-[#e4e6eb]'
+                                                            : 'text-gray-500'
+                                                    }`}
+                                                >
+                                                            {formatMessageTime(msg.created_at)}
+                                                </span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                );
-                            })}
+                                    );
+                                })
+                            )}
                             <div ref={messagesEndRef} />
                         </div>
 
@@ -843,13 +922,42 @@ export default function Chat({ users: initialUsers, auth }) {
                                     >
                                         <Paperclip className="w-5 h-5" />
                                     </button>
-                                    <input
-                                        type="text"
-                                        value={message}
-                                        onChange={(e) => setMessage(e.target.value)}
-                                        placeholder="Aa"
-                                        className="flex-1 rounded-full bg-[#f0f2f5] border-none px-4 py-2 focus:ring-2 focus:ring-[#0084ff] focus:outline-none transition-all duration-200"
-                                    />
+                                    <div className="relative flex-1">
+                                        <input
+                                            type="text"
+                                            value={message}
+                                            onChange={(e) => setMessage(e.target.value)}
+                                            placeholder="Aa"
+                                            className="w-full rounded-full bg-[#f0f2f5] border-none px-4 py-2 focus:ring-2 focus:ring-[#0084ff] focus:outline-none transition-all duration-200"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                                            className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 text-gray-500 hover:text-[#0084ff] rounded-full hover:bg-gray-100 transition-all duration-200"
+                                        >
+                                            <Smile className="w-5 h-5" />
+                                        </button>
+                                        {showEmojiPicker && (
+                                            <div
+                                                ref={emojiPickerRef}
+                                                className="absolute bottom-12 right-0 z-50 shadow-lg rounded-lg overflow-hidden"
+                                            >
+                                                <EmojiPicker
+                                                    onEmojiClick={onEmojiClick}
+                                                    width={300}
+                                                    height={400}
+                                                    theme="light"
+                                                    searchDisabled={false}
+                                                    skinTonesDisabled={false}
+                                                    previewConfig={{
+                                                        showPreview: true,
+                                                        showEmoji: true,
+                                                        showSkinTones: true
+                                                    }}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
                                     <button
                                         type="submit"
                                         disabled={uploadingImage || (!message.trim() && !selectedImage)}
