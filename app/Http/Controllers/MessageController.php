@@ -24,7 +24,7 @@ class MessageController extends Controller
             ]);
         }
 
-        return Inertia::render('Chat/Chat', [
+        return Inertia::render('Chat', [
             'messages' => $messages
         ]);
     }

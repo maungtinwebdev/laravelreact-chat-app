@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
-import { Image, Send, Paperclip, X, Loader2, Menu, ChevronLeft, Users, Search, MoreVertical, Phone, Video, Download, Smile, Trash2, Edit2, MoreHorizontal } from 'lucide-react';
+import { Image, Send, Paperclip, X, Loader2, Menu, ChevronLeft, Users, Search, MoreVertical, Phone, Video, Download, Smile, Trash2, Edit2, MoreHorizontal, Check, CheckCheck, Clock } from 'lucide-react';
 import { DateTime } from 'luxon';
 import EmojiPicker from 'emoji-picker-react';
 
@@ -65,6 +65,8 @@ export default function Chat({ users: initialUsers, auth }) {
     const [editingMessage, setEditingMessage] = useState(null);
     const [editText, setEditText] = useState('');
     const [showMessageActions, setShowMessageActions] = useState(null);
+    const [seenMessages, setSeenMessages] = useState(new Set());
+    const [messageStatus, setMessageStatus] = useState({});
 
     // Get user's timezone on component mount
     useEffect(() => {
@@ -266,7 +268,115 @@ export default function Chat({ users: initialUsers, auth }) {
         }
     };
 
-    // Subscribe to all messages
+    // Add function to mark messages as seen
+    const markMessagesAsSeen = async (messages) => {
+        const unreadMessages = messages.filter(msg =>
+            msg.receiver_id === auth.user.id && !seenMessages.has(msg.id)
+        );
+
+        if (unreadMessages.length === 0) return;
+
+        try {
+            const { error } = await supabase
+                .from('messages')
+                .update({ seen: true })
+                .in('id', unreadMessages.map(msg => msg.id));
+
+            if (error) throw error;
+
+            // Update local state
+            setSeenMessages(prev => {
+                const newSet = new Set(prev);
+                unreadMessages.forEach(msg => newSet.add(msg.id));
+                return newSet;
+            });
+        } catch (error) {
+            console.error('Error marking messages as seen:', error);
+        }
+    };
+
+    // Add function to update message status
+    const updateMessageStatus = async (messageId, status) => {
+        try {
+            const { error } = await supabase
+                .from('messages')
+                .update({ status })
+                .eq('id', messageId);
+
+            if (error) throw error;
+
+            setMessageStatus(prev => ({
+                ...prev,
+                [messageId]: status
+            }));
+        } catch (error) {
+            console.error('Error updating message status:', error);
+        }
+    };
+
+    // Update useEffect for messages to include status
+    useEffect(() => {
+        if (!selectedUser) return;
+
+        const fetchMessages = async () => {
+            setIsLoadingMessages(true);
+            try {
+                const { data, error } = await supabase
+                    .from('messages')
+                    .select(`
+                        *,
+                        sender:sender_id (
+                            id,
+                            name,
+                            profile_photo,
+                            email
+                        )
+                    `)
+                    .or(`and(sender_id.eq.${auth.user.id},receiver_id.eq.${selectedUser.id}),and(sender_id.eq.${selectedUser.id},receiver_id.eq.${auth.user.id})`)
+                    .order('created_at', { ascending: true });
+
+                if (error) {
+                    console.error('Error fetching messages:', error);
+                    return;
+                }
+
+                // Initialize message statuses
+                const statuses = {};
+                data?.forEach(msg => {
+                    if (msg.sender_id === auth.user.id) {
+                        statuses[msg.id] = msg.status || 'sent';
+                    }
+                });
+                setMessageStatus(statuses);
+
+                setMessages(data || []);
+                markMessagesAsSeen(data || []);
+                scrollToBottom();
+
+                // Clear unread messages for selected user
+                setUnreadMessages(prev => ({
+                    ...prev,
+                    [selectedUser.id]: 0
+                }));
+
+                // Update last message ID
+                if (data && data.length > 0) {
+                    setLastMessageIds(prev => ({
+                        ...prev,
+                        [selectedUser.id]: data[data.length - 1].id
+                    }));
+                }
+            } catch (error) {
+                console.error('Error in fetchMessages:', error);
+            } finally {
+                setIsLoadingMessages(false);
+            }
+        };
+
+        fetchMessages();
+    }, [selectedUser, auth.user.id]);
+
+    // Update real-time subscription to handle message status
     useEffect(() => {
         channelRef.current = supabase
             .channel('messages')
@@ -281,9 +391,7 @@ export default function Chat({ users: initialUsers, auth }) {
                     if (payload.eventType === 'INSERT') {
                         const newMessage = payload.new;
 
-                        // Check if the message is relevant to the current user
                         if (newMessage.sender_id === auth.user.id || newMessage.receiver_id === auth.user.id) {
-                            // Fetch the complete message with sender data
                             const { data: messageWithSender, error } = await supabase
                                 .from('messages')
                                 .select(`
@@ -303,15 +411,29 @@ export default function Chat({ users: initialUsers, auth }) {
                                 return;
                             }
 
-                            // Update messages if the current chat is with the sender or receiver
                             if (selectedUser &&
                                 (messageWithSender.sender_id === selectedUser.id ||
                                  messageWithSender.receiver_id === selectedUser.id)) {
                                 setMessages(prev => [...prev, messageWithSender]);
+
+                                // Update message status
+                                if (messageWithSender.sender_id === auth.user.id) {
+                                    setMessageStatus(prev => ({
+                                        ...prev,
+                                        [messageWithSender.id]: 'sent'
+                                    }));
+                                }
+
+                                // Mark message as seen if we're the receiver
+                                if (messageWithSender.receiver_id === auth.user.id) {
+                                    markMessagesAsSeen([messageWithSender]);
+                                    // Update sender's message status to seen
+                                    updateMessageStatus(messageWithSender.id, 'seen');
+                                }
+
                                 scrollToBottom();
                             }
 
-                            // Update unread messages count if message is from another user
                             if (messageWithSender.sender_id !== auth.user.id) {
                                 setUnreadMessages(prev => ({
                                     ...prev,
@@ -319,7 +441,6 @@ export default function Chat({ users: initialUsers, auth }) {
                                 }));
                             }
 
-                            // Update last message ID for the conversation
                             const otherUserId = messageWithSender.sender_id === auth.user.id
                                 ? messageWithSender.receiver_id
                                 : messageWithSender.sender_id;
@@ -327,6 +448,13 @@ export default function Chat({ users: initialUsers, auth }) {
                             setLastMessageIds(prev => ({
                                 ...prev,
                                 [otherUserId]: messageWithSender.id
+                            }));
+                        }
+                    } else if (payload.eventType === 'UPDATE') {
+                        if (payload.new.status) {
+                            setMessageStatus(prev => ({
+                                ...prev,
+                                [payload.new.id]: payload.new.status
                             }));
                         }
                     }
@@ -413,58 +541,6 @@ export default function Chat({ users: initialUsers, auth }) {
         fetchAndSubscribeToUsers();
     }, [auth.user.id]);
 
-    // Fetch initial messages when a user is selected
-    useEffect(() => {
-        if (!selectedUser) return;
-
-        const fetchMessages = async () => {
-            setIsLoadingMessages(true);
-            try {
-            const { data, error } = await supabase
-                .from('messages')
-                .select(`
-                    *,
-                    sender:sender_id (
-                        id,
-                        name,
-                        profile_photo,
-                        email
-                    )
-                `)
-                .or(`and(sender_id.eq.${auth.user.id},receiver_id.eq.${selectedUser.id}),and(sender_id.eq.${selectedUser.id},receiver_id.eq.${auth.user.id})`)
-                .order('created_at', { ascending: true });
-
-            if (error) {
-                console.error('Error fetching messages:', error);
-                return;
-            }
-
-            setMessages(data || []);
-            scrollToBottom();
-
-            // Clear unread messages for selected user
-            setUnreadMessages(prev => ({
-                ...prev,
-                [selectedUser.id]: 0
-            }));
-
-            // Update last message ID
-            if (data && data.length > 0) {
-                setLastMessageIds(prev => ({
-                    ...prev,
-                    [selectedUser.id]: data[data.length - 1].id
-                }));
-                }
-            } catch (error) {
-                console.error('Error in fetchMessages:', error);
-            } finally {
-                setIsLoadingMessages(false);
-            }
-        };
-
-        fetchMessages();
-    }, [selectedUser, auth.user.id]);
-
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
@@ -540,7 +616,8 @@ export default function Chat({ users: initialUsers, auth }) {
                 receiver_id: selectedUser.id,
                 created_at: new Date().toISOString(),
                 image_url: imageUrl,
-                image_path: imagePath
+                image_path: imagePath,
+                status: 'sent'
             };
 
             // Insert message into database
@@ -551,6 +628,12 @@ export default function Chat({ users: initialUsers, auth }) {
                 .single();
 
             if (messageError) throw messageError;
+
+            // Update message status
+            setMessageStatus(prev => ({
+                ...prev,
+                [newMessage.id]: 'sent'
+            }));
 
             // Update last message ID
             setLastMessageIds(prev => ({
@@ -960,6 +1043,19 @@ export default function Chat({ users: initialUsers, auth }) {
                                                 </span>
                                                 {msg.edited && (
                                                     <span className="text-xs text-gray-400">(edited)</span>
+                                                )}
+                                                {msg.sender_id === auth.user.id && (
+                                                    <span className="text-xs text-[#e4e6eb] ml-1 flex items-center">
+                                                        {messageStatus[msg.id] === 'seen' ? (
+                                                            <CheckCheck className="w-3 h-3 inline" />
+                                                        ) : messageStatus[msg.id] === 'delivered' ? (
+                                                            <CheckCheck className="w-3 h-3 inline opacity-50" />
+                                                        ) : messageStatus[msg.id] === 'sent' ? (
+                                                            <Check className="w-3 h-3 inline" />
+                                                        ) : (
+                                                            <Clock className="w-3 h-3 inline animate-spin" />
+                                                        )}
+                                                    </span>
                                                 )}
                                             </div>
                                             {msg.sender_id === auth.user.id && (
