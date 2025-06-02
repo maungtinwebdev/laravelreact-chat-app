@@ -998,49 +998,49 @@ export default function Chat({ users: initialUsers, auth }) {
                                             } relative group`}
                                         >
                                             {msg.image_url && (
-                                                <div className="mb-2 relative group">
+                                                        <div className="mb-2 relative group">
                                                     <img
                                                         src={msg.image_url}
                                                         alt="Shared image"
-                                                        className="max-w-full rounded-lg cursor-pointer"
+                                                                className="max-w-full rounded-lg cursor-pointer"
                                                         style={{ maxHeight: '300px' }}
-                                                        onClick={() => {
-                                                            if (window.innerWidth <= 768) {
-                                                                downloadImage(msg.image_url);
-                                                            }
-                                                        }}
-                                                    />
-                                                    <button
-                                                        onClick={() => downloadImage(msg.image_url)}
-                                                        className="absolute top-2 right-2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white p-2 rounded-full
-                                                            md:opacity-0 md:group-hover:opacity-100
-                                                            opacity-100 transition-opacity duration-200"
-                                                        title="Download image"
-                                                    >
-                                                        {downloadingImage ? (
-                                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                                        ) : (
-                                                            <Download className="w-4 h-4" />
-                                                        )}
-                                                    </button>
-                                                    {window.innerWidth <= 768 && (
-                                                        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded-full">
-                                                            Tap to save
-                                                        </div>
-                                                    )}
+                                                                onClick={() => {
+                                                                    if (window.innerWidth <= 768) {
+                                                                        downloadImage(msg.image_url);
+                                                                    }
+                                                                }}
+                                                            />
+                                                            <button
+                                                                onClick={() => downloadImage(msg.image_url)}
+                                                                className="absolute top-2 right-2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white p-2 rounded-full
+                                                                    md:opacity-0 md:group-hover:opacity-100
+                                                                    opacity-100 transition-opacity duration-200"
+                                                                title="Download image"
+                                                            >
+                                                                {downloadingImage ? (
+                                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                                ) : (
+                                                                    <Download className="w-4 h-4" />
+                                                                )}
+                                                            </button>
+                                                            {window.innerWidth <= 768 && (
+                                                                <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded-full">
+                                                                    Tap to save
+                                                                </div>
+                                                            )}
                                                 </div>
                                             )}
                                             {msg.content && <p className="break-words">{msg.content}</p>}
                                             <div className="flex items-center gap-1">
-                                                <span
-                                                    className={`text-xs ${
-                                                        msg.sender_id === auth.user.id
-                                                            ? 'text-[#e4e6eb]'
-                                                            : 'text-gray-500'
-                                                    }`}
-                                                >
-                                                    {formatMessageTime(msg.created_at)}
-                                                </span>
+                                            <span
+                                                className={`text-xs ${
+                                                    msg.sender_id === auth.user.id
+                                                        ? 'text-[#e4e6eb]'
+                                                        : 'text-gray-500'
+                                                }`}
+                                            >
+                                                        {formatMessageTime(msg.created_at)}
+                                            </span>
                                                 {msg.edited && (
                                                     <span className="text-xs text-gray-400">(edited)</span>
                                                 )}
@@ -1068,11 +1068,11 @@ export default function Chat({ users: initialUsers, auth }) {
                                                     <Trash2 className="w-4 h-4 text-red-500 mr-2 mt-[-35px]" />
                                                 </button>
                                             )}
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                        );
+                                );
                     })
                             )}
                             <div ref={messagesEndRef} />

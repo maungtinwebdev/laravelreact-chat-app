@@ -42,6 +42,12 @@ export default function AuthenticatedLayout({ header, children }) {
                                 >
                                     My Day
                                 </NavLink>
+                                <NavLink
+                                    href={route('expense-tracker')}
+                                    active={route().current('expense-tracker')}
+                                >
+                                    Expense Tracker
+                                </NavLink>
                             </div>
                         </div>
 
@@ -145,6 +151,24 @@ export default function AuthenticatedLayout({ header, children }) {
                             active={route().current('dashboard')}
                         >
                             Dashboard
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            href={route('chat.index')}
+                            active={route().current('chat.index')}
+                        >
+                            Chat
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            href={route('my-day')}
+                            active={route().current('my-day')}
+                        >
+                            My Day
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            href={route('expense-tracker')}
+                            active={route().current('expense-tracker')}
+                        >
+                            Expense Tracker
                         </ResponsiveNavLink>
                     </div>
 

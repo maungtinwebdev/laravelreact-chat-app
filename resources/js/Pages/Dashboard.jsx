@@ -87,6 +87,17 @@ export default function Dashboard({ auth }) {
                                 </button>
 
                                 <button
+                                    onClick={() => handleNavigation('/expense-tracker')}
+                                    className="flex items-center p-6 bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                                >
+                                    <MessageSquare className="w-8 h-8 text-[#0084ff] mr-4" />
+                                    <div>
+                                        <h3 className="text-lg font-medium text-gray-900">Expense Tracking App</h3>
+                                        <p className="text-gray-500">Start track your income and expense</p>
+                                    </div>
+                                </button>
+
+                                <button
                                     onClick={() => handleNavigation('/profile/edit')}
                                     className="flex items-center p-6 bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow"
                                 >

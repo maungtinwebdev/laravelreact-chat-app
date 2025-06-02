@@ -59,6 +59,11 @@ Route::middleware(['web', 'auth', 'verified'])->group(function () {
     Route::get('/days', [DayController::class, 'index'])->name('days.index');
     Route::post('/days', [DayController::class, 'store'])->name('days.store');
     Route::delete('/days/{day}', [DayController::class, 'destroy'])->name('days.destroy');
+
+    // Expense Tracker routes
+    Route::get('/expense-tracker', function () {
+        return Inertia::render('ExpenseTracker');
+    })->name('expense-tracker');
 });
 
 // Admin routes
