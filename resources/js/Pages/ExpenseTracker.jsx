@@ -38,7 +38,40 @@ export default function ExpenseTracker({ auth }) {
         description: ''
     });
 
-    // Fetch expenses and categories
+    // Add refreshData function
+    const refreshData = async () => {
+        try {
+            // Fetch expenses
+            const { data: expensesData, error: expensesError } = await supabase
+                .from('expenses')
+                .select('*')
+                .eq('user_id', auth.user.id)
+                .gte('date', dateRange.start)
+                .lte('date', dateRange.end)
+                .order('date', { ascending: false });
+
+            if (expensesError) throw expensesError;
+            setExpenses(expensesData || []);
+
+            // Calculate summary
+            const summary = expensesData?.reduce((acc, expense) => {
+                if (expense.type === 'income') {
+                    acc.totalIncome += parseFloat(expense.amount);
+                } else {
+                    acc.totalExpense += parseFloat(expense.amount);
+                }
+                return acc;
+            }, { totalIncome: 0, totalExpense: 0 });
+
+            summary.balance = summary.totalIncome - summary.totalExpense;
+            setSummary(summary);
+
+        } catch (error) {
+            console.error('Error refreshing data:', error);
+        }
+    };
+
+    // Update useEffect to handle date range changes
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true);
@@ -52,30 +85,8 @@ export default function ExpenseTracker({ auth }) {
                 if (categoriesError) throw categoriesError;
                 setCategories(categoriesData || []);
 
-                // Fetch expenses
-                const { data: expensesData, error: expensesError } = await supabase
-                    .from('expenses')
-                    .select('*')
-                    .eq('user_id', auth.user.id)
-                    .gte('date', dateRange.start)
-                    .lte('date', dateRange.end)
-                    .order('date', { ascending: false });
-
-                if (expensesError) throw expensesError;
-                setExpenses(expensesData || []);
-
-                // Calculate summary
-                const summary = expensesData?.reduce((acc, expense) => {
-                    if (expense.type === 'income') {
-                        acc.totalIncome += parseFloat(expense.amount);
-                    } else {
-                        acc.totalExpense += parseFloat(expense.amount);
-                    }
-                    return acc;
-                }, { totalIncome: 0, totalExpense: 0 });
-
-                summary.balance = summary.totalIncome - summary.totalExpense;
-                setSummary(summary);
+                // Fetch expenses with date range
+                await refreshData();
 
             } catch (error) {
                 console.error('Error fetching data:', error);
@@ -98,30 +109,7 @@ export default function ExpenseTracker({ auth }) {
                 },
                 async (payload) => {
                     // Refresh data when changes occur
-                    const { data: expensesData, error: expensesError } = await supabase
-                        .from('expenses')
-                        .select('*')
-                        .eq('user_id', auth.user.id)
-                        .gte('date', dateRange.start)
-                        .lte('date', dateRange.end)
-                        .order('date', { ascending: false });
-
-                    if (!expensesError && expensesData) {
-                        setExpenses(expensesData);
-
-                        // Update summary
-                        const newSummary = expensesData.reduce((acc, expense) => {
-                            if (expense.type === 'income') {
-                                acc.totalIncome += parseFloat(expense.amount);
-                            } else {
-                                acc.totalExpense += parseFloat(expense.amount);
-                            }
-                            return acc;
-                        }, { totalIncome: 0, totalExpense: 0 });
-
-                        newSummary.balance = newSummary.totalIncome - newSummary.totalExpense;
-                        setSummary(newSummary);
-                    }
+                    await refreshData();
                 }
             )
             .subscribe();
@@ -129,7 +117,12 @@ export default function ExpenseTracker({ auth }) {
         return () => {
             subscription.unsubscribe();
         };
-    }, [auth.user.id, dateRange]);
+    }, [auth.user.id, dateRange.start, dateRange.end]); // Add dateRange dependencies
+
+    // Update date range handler
+    const handleDateRangeChange = (field, value) => {
+        setDateRange(prev => ({ ...prev, [field]: value }));
+    };
 
     // Handle form submission
     const handleSubmit = async (e) => {
@@ -300,13 +293,13 @@ export default function ExpenseTracker({ auth }) {
                                 <input
                                     type="date"
                                     value={dateRange.start}
-                                    onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                                    onChange={(e) => handleDateRangeChange('start', e.target.value)}
                                     className="rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
                                 />
                                 <input
                                     type="date"
                                     value={dateRange.end}
-                                    onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                                    onChange={(e) => handleDateRangeChange('end', e.target.value)}
                                     className="rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
                                 />
                             </div>
