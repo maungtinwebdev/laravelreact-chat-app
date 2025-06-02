@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
-import { Image, Send, Paperclip, X, Loader2, Menu, ChevronLeft, Users, Search, MoreVertical, Phone, Video, Download, Smile } from 'lucide-react';
+import { Image, Send, Paperclip, X, Loader2, Menu, ChevronLeft, Users, Search, MoreVertical, Phone, Video, Download, Smile, Trash2, Edit2, MoreHorizontal } from 'lucide-react';
 import { DateTime } from 'luxon';
 import EmojiPicker from 'emoji-picker-react';
 
@@ -59,6 +59,12 @@ export default function Chat({ users: initialUsers, auth }) {
     const emojiPickerRef = useRef(null);
     const [isLoadingUsers, setIsLoadingUsers] = useState(true);
     const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+    const [deletingMessageId, setDeletingMessageId] = useState(null);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [messageToDelete, setMessageToDelete] = useState(null);
+    const [editingMessage, setEditingMessage] = useState(null);
+    const [editText, setEditText] = useState('');
+    const [showMessageActions, setShowMessageActions] = useState(null);
 
     // Get user's timezone on component mount
     useEffect(() => {
@@ -340,63 +346,63 @@ export default function Chat({ users: initialUsers, auth }) {
         const fetchAndSubscribeToUsers = async () => {
             setIsLoadingUsers(true);
             try {
-                const { data: initialUsers, error } = await supabase
-                    .from('users')
-                    .select('id, name, email, profile_photo, last_active_at')
-                    .neq('id', auth.user.id);
+            const { data: initialUsers, error } = await supabase
+                .from('users')
+                .select('id, name, email, profile_photo, last_active_at')
+                .neq('id', auth.user.id);
 
-                if (error) {
-                    console.error('Error fetching users:', error);
-                    return;
-                }
+            if (error) {
+                console.error('Error fetching users:', error);
+                return;
+            }
 
-                setUsers(initialUsers || []);
+            setUsers(initialUsers || []);
 
-                // Subscribe to user changes
-                const userChannel = supabase
-                    .channel('users-changes')
-                    .on(
-                        'postgres_changes',
-                        {
-                            event: '*',
-                            schema: 'public',
-                            table: 'users',
-                        },
-                        async (payload) => {
-                            if (payload.eventType === 'INSERT') {
-                                setUsers(prev => {
-                                    const newUser = payload.new;
-                                    if (!prev.find(user => user.id === newUser.id)) {
-                                        setNewUserCount(prev => prev + 1);
-                                        return [...prev, newUser];
-                                    }
-                                    return prev;
-                                });
-                            } else if (payload.eventType === 'UPDATE') {
-                                setUsers(prev =>
-                                    prev.map(user =>
-                                        user.id === payload.new.id ? payload.new : user
-                                    )
-                                );
-                                // Update last active time
-                                if (payload.new.last_active_at) {
-                                    setLastActive(prev => ({
-                                        ...prev,
-                                        [payload.new.id]: payload.new.last_active_at
-                                    }));
+            // Subscribe to user changes
+            const userChannel = supabase
+                .channel('users-changes')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'users',
+                    },
+                    async (payload) => {
+                        if (payload.eventType === 'INSERT') {
+                            setUsers(prev => {
+                                const newUser = payload.new;
+                                if (!prev.find(user => user.id === newUser.id)) {
+                                    setNewUserCount(prev => prev + 1);
+                                    return [...prev, newUser];
                                 }
-                            } else if (payload.eventType === 'DELETE') {
-                                setUsers(prev =>
-                                    prev.filter(user => user.id !== payload.old.id)
-                                );
+                                return prev;
+                            });
+                        } else if (payload.eventType === 'UPDATE') {
+                            setUsers(prev =>
+                                prev.map(user =>
+                                    user.id === payload.new.id ? payload.new : user
+                                )
+                            );
+                            // Update last active time
+                            if (payload.new.last_active_at) {
+                                setLastActive(prev => ({
+                                    ...prev,
+                                    [payload.new.id]: payload.new.last_active_at
+                                }));
                             }
+                        } else if (payload.eventType === 'DELETE') {
+                            setUsers(prev =>
+                                prev.filter(user => user.id !== payload.old.id)
+                            );
                         }
-                    )
-                    .subscribe();
+                    }
+                )
+                .subscribe();
 
-                return () => {
-                    supabase.removeChannel(userChannel);
-                };
+            return () => {
+                supabase.removeChannel(userChannel);
+            };
             } catch (error) {
                 console.error('Error in fetchAndSubscribeToUsers:', error);
             } finally {
@@ -414,40 +420,40 @@ export default function Chat({ users: initialUsers, auth }) {
         const fetchMessages = async () => {
             setIsLoadingMessages(true);
             try {
-                const { data, error } = await supabase
-                    .from('messages')
-                    .select(`
-                        *,
-                        sender:sender_id (
-                            id,
-                            name,
-                            profile_photo,
-                            email
-                        )
-                    `)
-                    .or(`and(sender_id.eq.${auth.user.id},receiver_id.eq.${selectedUser.id}),and(sender_id.eq.${selectedUser.id},receiver_id.eq.${auth.user.id})`)
-                    .order('created_at', { ascending: true });
+            const { data, error } = await supabase
+                .from('messages')
+                .select(`
+                    *,
+                    sender:sender_id (
+                        id,
+                        name,
+                        profile_photo,
+                        email
+                    )
+                `)
+                .or(`and(sender_id.eq.${auth.user.id},receiver_id.eq.${selectedUser.id}),and(sender_id.eq.${selectedUser.id},receiver_id.eq.${auth.user.id})`)
+                .order('created_at', { ascending: true });
 
-                if (error) {
-                    console.error('Error fetching messages:', error);
-                    return;
-                }
+            if (error) {
+                console.error('Error fetching messages:', error);
+                return;
+            }
 
-                setMessages(data || []);
-                scrollToBottom();
+            setMessages(data || []);
+            scrollToBottom();
 
-                // Clear unread messages for selected user
-                setUnreadMessages(prev => ({
+            // Clear unread messages for selected user
+            setUnreadMessages(prev => ({
+                ...prev,
+                [selectedUser.id]: 0
+            }));
+
+            // Update last message ID
+            if (data && data.length > 0) {
+                setLastMessageIds(prev => ({
                     ...prev,
-                    [selectedUser.id]: 0
+                    [selectedUser.id]: data[data.length - 1].id
                 }));
-
-                // Update last message ID
-                if (data && data.length > 0) {
-                    setLastMessageIds(prev => ({
-                        ...prev,
-                        [selectedUser.id]: data[data.length - 1].id
-                    }));
                 }
             } catch (error) {
                 console.error('Error in fetchMessages:', error);
@@ -630,6 +636,78 @@ export default function Chat({ users: initialUsers, auth }) {
         };
     }, []);
 
+    // Add delete message function
+    const handleDeleteMessage = async (messageId) => {
+        try {
+            setDeletingMessageId(messageId);
+            const { error } = await supabase
+                .from('messages')
+                .delete()
+                .eq('id', messageId)
+                .eq('sender_id', auth.user.id); // Only allow deleting own messages
+
+            if (error) throw error;
+
+            // Update messages state
+            setMessages(prev => prev.filter(msg => msg.id !== messageId));
+
+            // Update last message ID if needed
+            if (selectedUser && lastMessageIds[selectedUser.id] === messageId) {
+                const remainingMessages = messages.filter(msg => msg.id !== messageId);
+                if (remainingMessages.length > 0) {
+                    setLastMessageIds(prev => ({
+                        ...prev,
+                        [selectedUser.id]: remainingMessages[remainingMessages.length - 1].id
+                    }));
+                } else {
+                    setLastMessageIds(prev => ({
+                        ...prev,
+                        [selectedUser.id]: null
+                    }));
+                }
+            }
+        } catch (error) {
+            console.error('Error deleting message:', error);
+            alert('Failed to delete message');
+        } finally {
+            setDeletingMessageId(null);
+            setShowDeleteConfirm(false);
+            setMessageToDelete(null);
+        }
+    };
+
+    // Add confirmation dialog for message deletion
+    const confirmDeleteMessage = (message) => {
+        setMessageToDelete(message);
+        setShowDeleteConfirm(true);
+    };
+
+    // Add edit message function
+    const handleEditMessage = async (messageId, newContent) => {
+        try {
+            const { error } = await supabase
+                .from('messages')
+                .update({ content: newContent, edited: true })
+                .eq('id', messageId)
+                .eq('sender_id', auth.user.id);
+
+            if (error) throw error;
+
+            // Update messages state
+            setMessages(prev => prev.map(msg =>
+                msg.id === messageId
+                    ? { ...msg, content: newContent, edited: true }
+                    : msg
+            ));
+
+            setEditingMessage(null);
+            setEditText('');
+        } catch (error) {
+            console.error('Error editing message:', error);
+            alert('Failed to edit message');
+        }
+    };
+
     return (
         <div className="flex h-[calc(100vh-4rem)] relative bg-[#f0f2f5]">
             {/* Mobile Menu Button */}
@@ -687,39 +765,39 @@ export default function Chat({ users: initialUsers, auth }) {
                         <UserListSkeleton />
                     ) : (
                         filteredUsers.map(user => (
-                            <button
-                                key={user.id}
-                                onClick={() => {
-                                    setSelectedUser(user);
-                                    setNewUserCount(0);
-                                    setIsMobileMenuOpen(false);
-                                }}
-                                className={`w-full text-left p-3 hover:bg-[#f0f2f5] transition-all duration-200 relative
-                                    ${selectedUser?.id === user.id ? 'bg-[#e4e6eb]' : ''}`}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="relative">
-                                        {renderUserAvatar(user)}
-                                        {onlineUsers.has(user.id) && (
-                                            <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#31a24c] border-2 border-white rounded-full"></span>
-                                        )}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center justify-between">
-                                            <span className="font-semibold text-[#1c1e21] truncate">{user.name}</span>
-                                            <span className="text-xs text-gray-500">
-                                                {onlineUsers.has(user.id) ? 'Active' : formatLastActive(user.last_active_at)}
-                                            </span>
-                                        </div>
-                                        <p className="text-sm text-gray-500 truncate">{user.email}</p>
-                                    </div>
-                                    {unreadMessages[user.id] > 0 && (
-                                        <span className="bg-[#0084ff] text-white text-xs font-medium px-2 py-1 rounded-full min-w-[20px] text-center">
-                                            {unreadMessages[user.id]}
-                                        </span>
+                        <button
+                            key={user.id}
+                            onClick={() => {
+                                setSelectedUser(user);
+                                setNewUserCount(0);
+                                setIsMobileMenuOpen(false);
+                            }}
+                            className={`w-full text-left p-3 hover:bg-[#f0f2f5] transition-all duration-200 relative
+                                ${selectedUser?.id === user.id ? 'bg-[#e4e6eb]' : ''}`}
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="relative">
+                                    {renderUserAvatar(user)}
+                                    {onlineUsers.has(user.id) && (
+                                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#31a24c] border-2 border-white rounded-full"></span>
                                     )}
                                 </div>
-                            </button>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between">
+                                        <span className="font-semibold text-[#1c1e21] truncate">{user.name}</span>
+                                        <span className="text-xs text-gray-500">
+                                            {onlineUsers.has(user.id) ? 'Active' : formatLastActive(user.last_active_at)}
+                                        </span>
+                                    </div>
+                                    <p className="text-sm text-gray-500 truncate">{user.email}</p>
+                                </div>
+                                {unreadMessages[user.id] > 0 && (
+                                    <span className="bg-[#0084ff] text-white text-xs font-medium px-2 py-1 rounded-full min-w-[20px] text-center">
+                                        {unreadMessages[user.id]}
+                                    </span>
+                                )}
+                            </div>
+                        </button>
                         ))
                     )}
                 </div>
@@ -798,78 +876,79 @@ export default function Chat({ users: initialUsers, auth }) {
                                 </>
                             ) : (
                                 messages.map((msg, index) => {
-                                    const showDateHeader = index === 0 ||
-                                        !DateTime.fromISO(msg.created_at)
-                                            .setZone('Asia/Yangon')
-                                            .hasSame(
-                                                DateTime.fromISO(messages[index - 1].created_at)
-                                                    .setZone('Asia/Yangon'),
-                                                'day'
-                                            );
+                                const showDateHeader = index === 0 ||
+                                    !DateTime.fromISO(msg.created_at)
+                                        .setZone('Asia/Yangon')
+                                        .hasSame(
+                                            DateTime.fromISO(messages[index - 1].created_at)
+                                                .setZone('Asia/Yangon'),
+                                            'day'
+                                        );
 
-                                    return (
-                                        <div key={msg.id}>
-                                            {showDateHeader && (
-                                                <div className="flex justify-center my-4">
-                                                    <div className="bg-white px-4 py-1 rounded-full text-sm text-gray-500 shadow-sm">
-                                                        {getMessageDateHeader(msg.created_at)}
-                                                    </div>
+                                return (
+                                    <div key={msg.id}>
+                                        {showDateHeader && (
+                                            <div className="flex justify-center my-4">
+                                                <div className="bg-white px-4 py-1 rounded-full text-sm text-gray-500 shadow-sm">
+                                                    {getMessageDateHeader(msg.created_at)}
+                                                </div>
+                                            </div>
+                                        )}
+                                        <div
+                                    className={`flex ${
+                                        msg.sender_id === auth.user.id ? 'justify-end' : 'justify-start'
+                                    }`}
+                                >
+                                    <div
+                                        className={`flex max-w-[85%] md:max-w-[70%] ${
+                                            msg.sender_id === auth.user.id
+                                                ? 'flex-row-reverse'
+                                                : 'flex-row'
+                                                    } items-end gap-2 group relative`}
+                                    >
+                                        {renderUserAvatar(msg.sender)}
+                                        <div
+                                            className={`rounded-2xl px-4 py-2 ${
+                                                msg.sender_id === auth.user.id
+                                                    ? 'bg-[#0084ff] text-white'
+                                                    : 'bg-white text-[#1c1e21] shadow-sm'
+                                            } relative group`}
+                                        >
+                                            {msg.image_url && (
+                                                <div className="mb-2 relative group">
+                                                    <img
+                                                        src={msg.image_url}
+                                                        alt="Shared image"
+                                                        className="max-w-full rounded-lg cursor-pointer"
+                                                        style={{ maxHeight: '300px' }}
+                                                        onClick={() => {
+                                                            if (window.innerWidth <= 768) {
+                                                                downloadImage(msg.image_url);
+                                                            }
+                                                        }}
+                                                    />
+                                                    <button
+                                                        onClick={() => downloadImage(msg.image_url)}
+                                                        className="absolute top-2 right-2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white p-2 rounded-full
+                                                            md:opacity-0 md:group-hover:opacity-100
+                                                            opacity-100 transition-opacity duration-200"
+                                                        title="Download image"
+                                                    >
+                                                        {downloadingImage ? (
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                        ) : (
+                                                            <Download className="w-4 h-4" />
+                                                        )}
+                                                    </button>
+                                                    {window.innerWidth <= 768 && (
+                                                        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded-full">
+                                                            Tap to save
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
-                                            <div
-                                        className={`flex ${
-                                            msg.sender_id === auth.user.id ? 'justify-end' : 'justify-start'
-                                        }`}
-                                    >
-                                        <div
-                                            className={`flex max-w-[85%] md:max-w-[70%] ${
-                                                msg.sender_id === auth.user.id
-                                                    ? 'flex-row-reverse'
-                                                    : 'flex-row'
-                                            } items-end gap-2`}
-                                        >
-                                            {renderUserAvatar(msg.sender)}
-                                            <div
-                                                className={`rounded-2xl px-4 py-2 ${
-                                                    msg.sender_id === auth.user.id
-                                                        ? 'bg-[#0084ff] text-white'
-                                                        : 'bg-white text-[#1c1e21] shadow-sm'
-                                                }`}
-                                            >
-                                                {msg.image_url && (
-                                                            <div className="mb-2 relative group">
-                                                        <img
-                                                            src={msg.image_url}
-                                                            alt="Shared image"
-                                                                    className="max-w-full rounded-lg cursor-pointer"
-                                                            style={{ maxHeight: '300px' }}
-                                                                    onClick={() => {
-                                                                        if (window.innerWidth <= 768) {
-                                                                            downloadImage(msg.image_url);
-                                                                        }
-                                                                    }}
-                                                                />
-                                                                <button
-                                                                    onClick={() => downloadImage(msg.image_url)}
-                                                                    className="absolute top-2 right-2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white p-2 rounded-full
-                                                                        md:opacity-0 md:group-hover:opacity-100
-                                                                        opacity-100 transition-opacity duration-200"
-                                                                    title="Download image"
-                                                                >
-                                                                    {downloadingImage ? (
-                                                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                                                    ) : (
-                                                                        <Download className="w-4 h-4" />
-                                                                    )}
-                                                                </button>
-                                                                {window.innerWidth <= 768 && (
-                                                                    <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded-full">
-                                                                        Tap to save
-                                                                    </div>
-                                                                )}
-                                                    </div>
-                                                )}
-                                                {msg.content && <p className="break-words">{msg.content}</p>}
+                                            {msg.content && <p className="break-words">{msg.content}</p>}
+                                            <div className="flex items-center gap-1">
                                                 <span
                                                     className={`text-xs ${
                                                         msg.sender_id === auth.user.id
@@ -877,14 +956,28 @@ export default function Chat({ users: initialUsers, auth }) {
                                                             : 'text-gray-500'
                                                     }`}
                                                 >
-                                                            {formatMessageTime(msg.created_at)}
+                                                    {formatMessageTime(msg.created_at)}
                                                 </span>
-                                                    </div>
-                                                </div>
+                                                {msg.edited && (
+                                                    <span className="text-xs text-gray-400">(edited)</span>
+                                                )}
                                             </div>
+                                            {msg.sender_id === auth.user.id && (
+                                                <button
+                                                    onClick={() => confirmDeleteMessage(msg)}
+                                                    className="absolute -right-8 top-1/2 transform -translate-y-1/2 p-1.5 text-gray-500 hover:text-red-500 rounded-full
+                                                        opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                                                    title="Delete message"
+                                                >
+                                                    <Trash2 className="w-4 h-4 text-red-500 mr-2 mt-[-35px]" />
+                                                </button>
+                                            )}
                                         </div>
-                                    );
-                                })
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })
                             )}
                             <div ref={messagesEndRef} />
                         </div>
@@ -923,11 +1016,11 @@ export default function Chat({ users: initialUsers, auth }) {
                                         <Paperclip className="w-5 h-5" />
                                     </button>
                                     <div className="relative flex-1">
-                                        <input
-                                            type="text"
-                                            value={message}
-                                            onChange={(e) => setMessage(e.target.value)}
-                                            placeholder="Aa"
+                                    <input
+                                        type="text"
+                                        value={message}
+                                        onChange={(e) => setMessage(e.target.value)}
+                                        placeholder="Aa"
                                             className="w-full rounded-full bg-[#f0f2f5] border-none px-4 py-2 focus:ring-2 focus:ring-[#0084ff] focus:outline-none transition-all duration-200"
                                         />
                                         <button
@@ -994,6 +1087,41 @@ export default function Chat({ users: initialUsers, auth }) {
                     </div>
                 )}
             </div>
+
+            {/* Delete Confirmation Dialog */}
+            {showDeleteConfirm && messageToDelete && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Delete Message</h3>
+                        <p className="text-gray-600 mb-6">Are you sure you want to delete this message? This action cannot be undone.</p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => {
+                                    setShowDeleteConfirm(false);
+                                    setMessageToDelete(null);
+                                }}
+                                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors duration-200"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => handleDeleteMessage(messageToDelete.id)}
+                                disabled={deletingMessageId === messageToDelete.id}
+                                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                                {deletingMessageId === messageToDelete.id ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        Deleting...
+                                    </>
+                                ) : (
+                                    'Delete'
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
