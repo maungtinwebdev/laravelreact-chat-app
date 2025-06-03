@@ -478,13 +478,13 @@ export default function ExpenseTracker({ auth }) {
             {/* Sidebar */}
             <div
                 ref={sidebarRef}
-                className={`fixed lg:static inset-y-0 left-0 w-[280px] lg:w-[360px] bg-white border-r border-gray-200 flex flex-col transform transition-transform duration-200 ease-in-out z-40 ${
+                className={`fixed lg:static inset-y-0 left-0 w-[340px] lg:w-[360px] bg-white border-r border-gray-200 flex flex-col transform transition-transform duration-200 ease-in-out z-40 ${
                     showSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
                 }`}
             >
                 {/* Header */}
                 <div className="p-4 border-b border-gray-200">
-                    <h2 className="text-xl font-bold text-[#1c1e21] mb-4">Expense Tracker</h2>
+                    <h2 className="text-xl font-bold text-[#1c1e21] mb-4 text-center">Expense Tracker</h2>
                     <div className="space-y-4">
                         {/* Summary Cards */}
                         <div className="grid grid-cols-2 gap-4">

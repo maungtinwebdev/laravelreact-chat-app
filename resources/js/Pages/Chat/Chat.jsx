@@ -814,7 +814,7 @@ export default function Chat({ users: initialUsers, auth }) {
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xl font-bold text-[#1c1e21] flex items-center gap-2">
                             <Users className="w-6 h-6 text-[#0084ff]" />
-                            Chats
+                            <h3 className='text-center w-[100px]'>Chats</h3>
                         </h2>
                         <button className="p-2 text-gray-500 hover:text-[#0084ff] rounded-full hover:bg-gray-100">
                             <MoreVertical className="w-5 h-5" />
@@ -822,7 +822,7 @@ export default function Chat({ users: initialUsers, auth }) {
                     </div>
 
                     {/* Search Bar */}
-                    <div className="relative">
+                    <div className="relative mt-5">
                         <input
                             type="text"
                             placeholder="Search Messenger"
@@ -921,14 +921,14 @@ export default function Chat({ users: initialUsers, auth }) {
                                                 Active
                                             </p>
                                         ) : (
-                                            <p className="text-sm text-slate-500">{formatLastActive(selectedUser.last_active_at)}
+                                            <p className="text-xs text-slate-500">{formatLastActive(selectedUser.last_active_at)}
                                     </p>
                                         )}
                                         <span className="text-xs text-gray-500">•</span>
                                         <p className="text-xs text-gray-500"> {userTimezone}</p>
                                     </div>
                                 </div>
-                                <div className="flex gap-2">
+                                <div className="flex gap-1">
                                     <button className="p-2 text-gray-500 hover:text-[#0084ff] rounded-full hover:bg-gray-100">
                                         <Phone className="w-5 h-5" />
                                     </button>
