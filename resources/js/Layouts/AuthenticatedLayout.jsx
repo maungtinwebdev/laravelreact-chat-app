@@ -48,6 +48,12 @@ export default function AuthenticatedLayout({ header, children }) {
                                 >
                                     Expense Tracker
                                 </NavLink>
+                                <NavLink
+                                    href={route('todos')}
+                                    active={route().current('todos')}
+                                >
+                                    Todo List
+                                </NavLink>
                             </div>
                         </div>
 
@@ -169,6 +175,12 @@ export default function AuthenticatedLayout({ header, children }) {
                             active={route().current('expense-tracker')}
                         >
                             Expense Tracker
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            href={route('todos')}
+                            active={route().current('todos')}
+                        >
+                            Todo List
                         </ResponsiveNavLink>
                     </div>
 

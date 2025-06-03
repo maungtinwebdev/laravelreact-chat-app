@@ -64,6 +64,15 @@ Route::middleware(['web', 'auth', 'verified'])->group(function () {
     Route::get('/expense-tracker', function () {
         return Inertia::render('ExpenseTracker');
     })->name('expense-tracker');
+
+    // Todo List routes
+    Route::get('/todos', function () {
+        return Inertia::render('TodoList', [
+            'auth' => [
+                'user' => auth()->user()
+            ]
+        ]);
+    })->name('todos');
 });
 
 // Admin routes
