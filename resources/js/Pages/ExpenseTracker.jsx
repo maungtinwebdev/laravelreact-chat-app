@@ -67,6 +67,8 @@ export default function ExpenseTracker({ auth }) {
         categoryData: null,
         trendData: null
     });
+    const overlayRef = useRef(null);
+    const sidebarRef = useRef(null);
 
     // Add function to calculate summary
     const calculateSummary = (expenses) => {
@@ -167,6 +169,19 @@ export default function ExpenseTracker({ auth }) {
             subscription.unsubscribe();
         };
     }, [auth.user.id]);
+
+    // Add cleanup effect
+    useEffect(() => {
+        return () => {
+            // Cleanup function
+            if (overlayRef.current) {
+                overlayRef.current = null;
+            }
+            if (sidebarRef.current) {
+                sidebarRef.current = null;
+            }
+        };
+    }, []);
 
     // Update date range handler
     const handleDateRangeChange = (field, value) => {
@@ -461,9 +476,12 @@ export default function ExpenseTracker({ auth }) {
             </button>
 
             {/* Sidebar */}
-            <div className={`fixed lg:static inset-y-0 left-0 w-[280px] lg:w-[360px] bg-white border-r border-gray-200 flex flex-col transform transition-transform duration-200 ease-in-out z-40 ${
-                showSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-            }`}>
+            <div
+                ref={sidebarRef}
+                className={`fixed lg:static inset-y-0 left-0 w-[280px] lg:w-[360px] bg-white border-r border-gray-200 flex flex-col transform transition-transform duration-200 ease-in-out z-40 ${
+                    showSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+                }`}
+            >
                 {/* Header */}
                 <div className="p-4 border-b border-gray-200">
                     <h2 className="text-xl font-bold text-[#1c1e21] mb-4">Expense Tracker</h2>
@@ -972,8 +990,10 @@ export default function ExpenseTracker({ auth }) {
             {/* Mobile Overlay */}
             {showSidebar && (
                 <div
+                    ref={overlayRef}
                     className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
                     onClick={() => setShowSidebar(false)}
+                    aria-hidden="true"
                 />
             )}
         </div>
