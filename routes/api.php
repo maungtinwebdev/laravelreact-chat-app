@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ChatController;
 use App\Models\User;
+use App\Http\Controllers\InventoryController;
 
 /*
 |--------------------------------------------------------------------------
@@ -16,7 +17,7 @@ use App\Models\User;
 |
 */
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'web'])->group(function () {
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
@@ -31,6 +32,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/messages/{messageId}/delivered', [ChatController::class, 'markAsDelivered']);
         Route::post('/messages/{messageId}/seen', [ChatController::class, 'markAsSeen']);
     });
+
+    // Inventory API Routes
+    Route::get('/inventory', [InventoryController::class, 'index']);
+    Route::post('/inventory', [InventoryController::class, 'store']);
+    Route::put('/inventory/{inventory}', [InventoryController::class, 'update']);
+    Route::delete('/inventory/{inventory}', [InventoryController::class, 'destroy']);
 });
 
 // Users API route - moved outside auth middleware for testing
