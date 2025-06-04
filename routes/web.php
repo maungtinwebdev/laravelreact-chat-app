@@ -5,6 +5,7 @@ use App\Http\Controllers\MessageController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\DayController;
 use App\Http\Controllers\InventoryController;
+use App\Http\Controllers\InventoryCategoryController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -75,11 +76,17 @@ Route::middleware(['web', 'auth', 'verified'])->group(function () {
         ]);
     })->name('todos');
 
-    // Inventory Management Routes
+    // Inventory Management
     Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
-    Route::post('/inventory', [InventoryController::class, 'store'])->name('inventory.store');
-    Route::put('/inventory/{inventory}', [InventoryController::class, 'update'])->name('inventory.update');
-    Route::delete('/inventory/{inventory}', [InventoryController::class, 'destroy'])->name('inventory.destroy');
+    Route::post('/api/inventory', [InventoryController::class, 'store'])->name('inventory.store');
+    Route::put('/api/inventory/{inventory}', [InventoryController::class, 'update'])->name('inventory.update');
+    Route::delete('/api/inventory/{inventory}', [InventoryController::class, 'destroy'])->name('inventory.destroy');
+
+    // Inventory Categories
+    Route::get('/api/inventory-categories', [InventoryCategoryController::class, 'index'])->name('inventory-categories.index');
+    Route::post('/api/inventory-categories', [InventoryCategoryController::class, 'store'])->name('inventory-categories.store');
+    Route::put('/api/inventory-categories/{id}', [InventoryCategoryController::class, 'update'])->name('inventory-categories.update');
+    Route::delete('/api/inventory-categories/{id}', [InventoryCategoryController::class, 'destroy'])->name('inventory-categories.destroy');
 });
 
 // Admin routes

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Inventory;
+use App\Models\InventoryCategory;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -10,16 +11,25 @@ class InventoryController extends Controller
 {
     public function index(Request $request)
     {
-        $inventory = Inventory::where('user_id', auth()->id())
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $query = Inventory::where('user_id', auth()->id());
+
+        if ($request->has('category_id') && $request->category_id !== '') {
+            $query->where('category_id', $request->category_id);
+        }
+
+        $inventory = $query->get();
+        $categories = InventoryCategory::where('user_id', auth()->id())->get();
 
         if ($request->wantsJson()) {
-            return response()->json($inventory);
+            return response()->json([
+                'inventory' => $inventory,
+                'categories' => $categories
+            ]);
         }
 
         return Inertia::render('Inventory/Index', [
-            'inventory' => $inventory
+            'inventory' => $inventory,
+            'categories' => $categories
         ]);
     }
 
@@ -27,16 +37,22 @@ class InventoryController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'category' => 'required|string|max:255',
-            'quantity' => 'required|integer|min:0',
+            'category_id' => 'required|exists:inventory_categories,id',
+            'quantity' => 'required|numeric|min:0',
             'price' => 'required|numeric|min:0',
             'description' => 'nullable|string',
-            'minimum_stock' => 'required|integer|min:0'
+            'minimum_stock' => 'required|numeric|min:0',
         ]);
 
-        $validated['user_id'] = auth()->id();
-
-        $inventory = Inventory::create($validated);
+        $inventory = Inventory::create([
+            'user_id' => auth()->id(),
+            'name' => $validated['name'],
+            'category_id' => $validated['category_id'],
+            'quantity' => $validated['quantity'],
+            'price' => $validated['price'],
+            'description' => $validated['description'],
+            'minimum_stock' => $validated['minimum_stock'],
+        ]);
 
         if ($request->wantsJson()) {
             return response()->json($inventory, 201);
@@ -51,11 +67,11 @@ class InventoryController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'category' => 'required|string|max:255',
-            'quantity' => 'required|integer|min:0',
+            'category_id' => 'required|exists:inventory_categories,id',
+            'quantity' => 'required|numeric|min:0',
             'price' => 'required|numeric|min:0',
             'description' => 'nullable|string',
-            'minimum_stock' => 'required|integer|min:0'
+            'minimum_stock' => 'required|numeric|min:0',
         ]);
 
         $inventory->update($validated);

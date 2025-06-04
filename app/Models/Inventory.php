@@ -10,13 +10,13 @@ class Inventory extends Model
     use HasFactory;
 
     protected $fillable = [
+        'user_id',
         'name',
-        'category',
+        'category_id',
         'quantity',
         'price',
         'description',
         'minimum_stock',
-        'user_id'
     ];
 
     protected $casts = [
@@ -28,5 +28,10 @@ class Inventory extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function category()
+    {
+        return $this->belongsTo(InventoryCategory::class, 'category_id');
     }
 }
