@@ -322,16 +322,18 @@ export default function ExpenseTracker({ auth }) {
                 .insert([{
                     id: uuidv4(),
                     name: newCategory.name,
-                    description: newCategory.description
+                    description: newCategory.description,
+                    user_id: auth.user.id
                 }]);
 
             if (error) throw error;
 
             // Refresh categories
             const { data: categoriesData, error: categoriesError } = await supabase
-                .from('expense_categories')
-                .select('*')
-                .order('name');
+              .from('expense_categories')
+              .select('*')
+              .or(`user_id.is.null,user_id.eq.${auth.user.id}`)
+              .order('name');
 
             if (categoriesError) throw categoriesError;
             setCategories(categoriesData || []);
