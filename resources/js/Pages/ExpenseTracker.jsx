@@ -99,11 +99,13 @@ export default function ExpenseTracker({ auth }) {
                 if (categoriesError) throw categoriesError;
                 setCategories(categoriesData || []);
 
-                // Then fetch expenses
+                // Then fetch expenses with date range filter
                 const { data: expensesData, error: expensesError } = await supabase
                     .from('expenses')
                     .select('*')
                     .eq('user_id', auth.user.id)
+                    .gte('date', dateRange.start)
+                    .lte('date', dateRange.end)
                     .order('date', { ascending: false });
 
                 if (expensesError) throw expensesError;
@@ -139,11 +141,13 @@ export default function ExpenseTracker({ auth }) {
                 },
                 async (payload) => {
                     try {
-                        // Fetch updated expenses
+                        // Fetch updated expenses with date range filter
                         const { data: expensesData, error: expensesError } = await supabase
                             .from('expenses')
                             .select('*')
                             .eq('user_id', auth.user.id)
+                            .gte('date', dateRange.start)
+                            .lte('date', dateRange.end)
                             .order('date', { ascending: false });
 
                         if (expensesError) throw expensesError;
@@ -168,7 +172,7 @@ export default function ExpenseTracker({ auth }) {
         return () => {
             subscription.unsubscribe();
         };
-    }, [auth.user.id]);
+    }, [auth.user.id, dateRange]);
 
     // Add cleanup effect
     useEffect(() => {
@@ -186,6 +190,13 @@ export default function ExpenseTracker({ auth }) {
     // Update date range handler
     const handleDateRangeChange = (field, value) => {
         setDateRange(prev => ({ ...prev, [field]: value }));
+        setShowSidebar(false); // Close sidebar after date range change
+    };
+
+    // Add handler for category change
+    const handleCategoryChange = (e) => {
+        setSelectedCategory(e.target.value);
+        setShowSidebar(false); // Close sidebar after category change
     };
 
     // Update handleSubmit for real-time updates
@@ -294,11 +305,12 @@ export default function ExpenseTracker({ auth }) {
         }
     };
 
-    // Filter expenses based on search and category
+    // Update filteredExpenses to include date range filtering
     const filteredExpenses = expenses.filter(expense => {
         const matchesSearch = expense.description.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesCategory = selectedCategory === 'all' || expense.category === selectedCategory;
-        return matchesSearch && matchesCategory;
+        const matchesDateRange = expense.date >= dateRange.start && expense.date <= dateRange.end;
+        return matchesSearch && matchesCategory && matchesDateRange;
     });
 
     // Handle new category submission
@@ -438,6 +450,7 @@ export default function ExpenseTracker({ auth }) {
 
     // Add function to handle view mode change
     const handleViewModeChange = async (mode) => {
+        setShowSidebar(!showSidebar)
         setViewMode(mode);
         if (mode === 'chart') {
             try {
@@ -529,24 +542,26 @@ export default function ExpenseTracker({ auth }) {
                                 <label className="block text-sm font-medium text-gray-700">Category</label>
                                 <button
                                     onClick={() => setShowCategoryModal(true)}
-                                    className="text-sm text-blue-500 hover:text-blue-600 flex items-center"
+                                    className="text-sm bg-blue-500 hover:bg-blue-600 flex items-center px-3 py-1 rounded text-white"
                                 >
-                                    <Plus className="w-4 h-4 mr-1" />
+                                    <Plus className="w-4 h-4 mr-1 text-white" />
                                     Add Category
                                 </button>
                             </div>
-                            <select
-                                value={selectedCategory}
-                                onChange={(e) => setSelectedCategory(e.target.value)}
-                                className="w-full rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
-                            >
-                                <option value="all">All Categories</option>
-                                {categories.map(category => (
-                                    <option key={category.id} value={category.id}>
-                                        {category.name}
-                                    </option>
-                                ))}
-                            </select>
+                            <div className="grid grid-cols-1 gap-2">
+                                <select
+                                    value={selectedCategory}
+                                    onChange={handleCategoryChange}
+                                    className="rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
+                                >
+                                    <option value="all">All Categories</option>
+                                    {categories.map(category => (
+                                        <option key={category.id} value={category.id}>
+                                            {category.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
                     </div>
                 </div>
