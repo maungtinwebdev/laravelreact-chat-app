@@ -693,61 +693,41 @@ export default function ExpenseTracker({ auth }) {
                             {/* Category Distribution */}
                             <div className="bg-white rounded-lg shadow-sm p-6">
                                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Expense Categories Distribution</h3>
-                                <div className="h-[300px]">
-                                    {chartData.categoryData && chartData.categoryData.labels.length > 0 ? (
-                                        <Pie
-                                            data={chartData.categoryData}
-                                            options={{
-                                                responsive: true,
-                                                maintainAspectRatio: false,
-                                                plugins: {
-                                                    legend: {
-                                                        position: 'right',
-                                                        labels: {
-                                                            padding: 20,
-                                                            font: {
-                                                                size: 12
-                                                            },
-                                                            generateLabels: function(chart) {
-                                                                const data = chart.data;
-                                                                if (data.labels.length && data.datasets.length) {
-                                                                    return data.labels.map((label, i) => {
-                                                                        const value = data.datasets[0].data[i];
-                                                                        const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
-                                                                        const percentage = ((value / total) * 100).toFixed(1);
-                                                                        return {
-                                                                            text: `${label} (${percentage}%)`,
-                                                                            fillStyle: data.datasets[0].backgroundColor[i],
-                                                                            hidden: false,
-                                                                            lineCap: 'butt',
-                                                                            lineDash: [],
-                                                                            lineDashOffset: 0,
-                                                                            lineJoin: 'miter',
-                                                                            lineWidth: 1,
-                                                                            strokeStyle: '#fff',
-                                                                            pointStyle: 'circle',
-                                                                            rotation: 0
-                                                                        };
-                                                                    });
-                                                                }
-                                                                return [];
+                                <div className="h-[400px] relative">
+                                    {chartData.categoryData && chartData.categoryData.datasets[0].data.some(value => value > 0) ? (
+                                        <div className="h-full overflow-y-auto">
+                                            <Pie
+                                                data={chartData.categoryData}
+                                                options={{
+                                                    responsive: true,
+                                                    maintainAspectRatio: false,
+                                                    plugins: {
+                                                        legend: {
+                                                            position: 'right',
+                                                            labels: {
+                                                                padding: 15,
+                                                                font: {
+                                                                    size: 11
+                                                                },
+                                                                boxWidth: 15,
+                                                                boxHeight: 15
                                                             }
-                                                        }
-                                                    },
-                                                    tooltip: {
-                                                        callbacks: {
-                                                            label: function(context) {
-                                                                const label = context.label || '';
-                                                                const value = context.raw || 0;
-                                                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                                                const percentage = ((value / total) * 100).toFixed(1);
-                                                                return `${label}: $${value.toFixed(2)} (${percentage}%)`;
+                                                        },
+                                                        tooltip: {
+                                                            callbacks: {
+                                                                label: function(context) {
+                                                                    const label = context.label || '';
+                                                                    const value = context.raw || 0;
+                                                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                                                    const percentage = ((value / total) * 100).toFixed(1);
+                                                                    return `${label}: $${value.toFixed(2)} (${percentage}%)`;
+                                                                }
                                                             }
                                                         }
                                                     }
-                                                }
-                                            }}
-                                        />
+                                                }}
+                                            />
+                                        </div>
                                     ) : (
                                         <div className="flex items-center justify-center h-full">
                                             <p className="text-gray-500">No expense data available for the selected period</p>
@@ -759,51 +739,65 @@ export default function ExpenseTracker({ auth }) {
                             {/* Category Trends */}
                             <div className="bg-white rounded-lg shadow-sm p-6">
                                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Daily Expenses by Category</h3>
-                                <div className="h-[300px]">
+                                <div className="h-[400px] relative">
                                     {chartData.trendData && chartData.trendData.datasets.some(dataset => dataset.data.some(value => value > 0)) ? (
-                                        <Line
-                                            data={chartData.trendData}
-                                            options={{
-                                                responsive: true,
-                                                maintainAspectRatio: false,
-                                                plugins: {
-                                                    legend: {
-                                                        position: 'top',
-                                                        labels: {
-                                                            padding: 20,
-                                                            font: {
-                                                                size: 12
+                                        <div className="h-full overflow-x-auto">
+                                            <Line
+                                                data={chartData.trendData}
+                                                options={{
+                                                    responsive: true,
+                                                    maintainAspectRatio: false,
+                                                    plugins: {
+                                                        legend: {
+                                                            position: 'top',
+                                                            labels: {
+                                                                padding: 20,
+                                                                font: {
+                                                                    size: 12
+                                                                },
+                                                                boxWidth: 15,
+                                                                boxHeight: 15
+                                                            }
+                                                        },
+                                                        tooltip: {
+                                                            mode: 'index',
+                                                            intersect: false,
+                                                            callbacks: {
+                                                                label: function(context) {
+                                                                    const label = context.dataset.label || '';
+                                                                    const value = context.raw || 0;
+                                                                    return `${label}: $${value.toFixed(2)}`;
+                                                                }
                                                             }
                                                         }
                                                     },
-                                                    tooltip: {
-                                                        callbacks: {
-                                                            label: function(context) {
-                                                                const label = context.dataset.label || '';
-                                                                const value = context.raw || 0;
-                                                                return `${label}: $${value.toFixed(2)}`;
+                                                    scales: {
+                                                        x: {
+                                                            grid: {
+                                                                display: false
+                                                            },
+                                                            ticks: {
+                                                                maxRotation: 45,
+                                                                minRotation: 45
                                                             }
-                                                        }
-                                                    }
-                                                },
-                                                scales: {
-                                                    y: {
-                                                        beginAtZero: true,
-                                                        ticks: {
-                                                            callback: function(value) {
-                                                                return '$' + value;
+                                                        },
+                                                        y: {
+                                                            beginAtZero: true,
+                                                            ticks: {
+                                                                callback: function(value) {
+                                                                    return '$' + value;
+                                                                }
                                                             }
                                                         }
                                                     },
-                                                    x: {
-                                                        ticks: {
-                                                            maxRotation: 45,
-                                                            minRotation: 45
-                                                        }
+                                                    interaction: {
+                                                        mode: 'nearest',
+                                                        axis: 'x',
+                                                        intersect: false
                                                     }
-                                                }
-                                            }}
-                                        />
+                                                }}
+                                            />
+                                        </div>
                                     ) : (
                                         <div className="flex items-center justify-center h-full">
                                             <p className="text-gray-500">No expense data available for the selected period</p>
