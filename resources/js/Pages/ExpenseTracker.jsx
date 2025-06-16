@@ -94,6 +94,7 @@ export default function ExpenseTracker({ auth }) {
                 const { data: categoriesData, error: categoriesError } = await supabase
                     .from('expense_categories')
                     .select('*')
+                    .or(`user_id.is.null,user_id.eq.${auth.user.id}`)
                     .order('name');
 
                 if (categoriesError) throw categoriesError;
